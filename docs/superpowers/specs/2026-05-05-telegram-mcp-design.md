@@ -1,121 +1,125 @@
-# Telegram MCP Design
+# Дизайн Telegram MCP
 
-## Goal
+## Цель
 
-Build a local-first, read-only MCP server that lets an agent search and read Telegram chats, groups, channels, and messages from a user account.
+Собрать local-first read-only MCP-сервер, который дает агенту доступ к поиску и чтению Telegram-чатов, групп, каналов и сообщений от имени пользовательского аккаунта.
 
-The first version optimizes for a fast local development loop and a narrow safety boundary. It must still leave a clean path to a future server deployment with proper user authorization and encrypted session storage.
+Первая версия оптимизируется под быстрый локальный цикл разработки и узкую safety boundary. При этом архитектура должна оставлять чистый путь к будущему серверному деплою с нормальной пользовательской авторизацией и зашифрованным хранением сессий.
 
-## Non-Goals
+## Язык спецификаций
 
-- No Telegram Bot API or grammY in the first version.
-- No message sending, forwarding, deleting, joining, leaving, pinning, or marking as read.
-- No realtime updates, watchers, webhooks, or daemon subscriptions.
-- No media download in the first version.
-- No multi-user server authorization in the first version.
+Спецификации проекта пишутся на русском. Имена tool-ов, переменных окружения, кодовых сущностей и публичные API-контракты остаются на английском.
 
-## Product Shape
+## Не-цели
 
-The MCP server is a read-only personal Telegram access layer for agents. The useful workflow is:
+- Не используем Telegram Bot API или grammY в первой версии.
+- Не отправляем, не пересылаем, не удаляем сообщения, не вступаем в чаты, не выходим из чатов, не закрепляем сообщения и не помечаем сообщения прочитанными.
+- Не делаем realtime updates, watchers, webhooks или daemon subscriptions.
+- Не скачиваем медиа в первой версии.
+- Не делаем мультипользовательскую серверную авторизацию в первой версии.
 
-1. Discover available chats.
-2. Search or resolve a specific chat.
-3. Inspect chat metadata.
-4. Search messages globally or within the chat.
-5. Read message history.
-6. Expand context around a found message.
+## Продуктовая форма
 
-This is intentionally broader than a thin message-search wrapper. Agents need stable chat references and surrounding context to produce reliable answers.
+MCP-сервер — это read-only personal Telegram access layer для агентов. Полезный сценарий:
 
-## Technology Choices
+1. Посмотреть доступные чаты.
+2. Найти или разрешить конкретный чат.
+3. Посмотреть метаданные чата.
+4. Найти сообщения глобально или внутри чата.
+5. Прочитать историю сообщений.
+6. Расширить контекст вокруг найденного сообщения.
+
+Это намеренно шире, чем тонкая обертка над поиском сообщений. Агенту нужны стабильные ссылки на чаты и контекст вокруг найденных сообщений, иначе ответы будут хрупкими.
+
+## Технологические решения
 
 - Runtime: Node.js.
-- Language: TypeScript.
+- Язык: TypeScript.
 - Telegram client: GramJS, npm package `telegram`.
-- MCP transport: stdio for the first version.
-- Configuration: `.env`.
-- Session format: GramJS `StringSession`.
-- Session storage: local file store in the first version.
+- MCP transport: `stdio` для первой версии.
+- Конфигурация: `.env`.
+- Формат сессии: GramJS `StringSession`.
+- Хранение сессии: локальный file store в первой версии.
 
-GramJS is the right first adapter because it supports MTProto user sessions in Node.js without pulling in TDLib native runtime complexity. TDLib remains a future adapter option if GramJS becomes a reliability or production constraint.
+GramJS — правильный первый adapter, потому что он поддерживает MTProto user sessions в Node.js без сложности native runtime TDLib. TDLib остается возможным будущим adapter-ом, если GramJS упрется в надежность или production constraints.
 
-## Architecture
+## Архитектура
 
-The codebase should keep MCP, Telegram, configuration, and session concerns separate.
+Кодовая база должна разделять MCP, Telegram, конфигурацию и сессии.
 
-### Components
+### Компоненты
 
 `McpServer`
 
-Registers MCP tools, validates inputs, maps tool calls to domain operations, and returns normalized outputs. It must not call GramJS directly.
+Регистрирует MCP tools, валидирует input, мапит tool calls на доменные операции и возвращает нормализованные outputs. Не должен напрямую вызывать GramJS.
 
 `TelegramClientAdapter`
 
-Owns read-only Telegram operations over GramJS. It hides GramJS request shapes, entity handling, pagination details, and Telegram errors from MCP tool handlers.
+Владеет read-only Telegram-операциями поверх GramJS. Прячет от MCP tool handlers формы GramJS-запросов, entity handling, pagination details и Telegram errors.
 
 `SessionStore`
 
-Loads and saves Telegram session strings. The first implementation is `FileSessionStore`; a future server version can replace it with encrypted database storage without changing tool handlers.
+Загружает и сохраняет Telegram session strings. Первая реализация — `FileSessionStore`; будущая серверная версия сможет заменить ее на encrypted database storage без изменений в tool handlers.
 
 `AuthFlow`
 
-Performs interactive local login. The first implementation is CLI-only and used by `telegram-mcp auth`.
+Выполняет интерактивный локальный login. Первая реализация — CLI-only и используется командой `telegram-mcp auth`.
 
 `Config`
 
-Reads `.env`, validates required values, expands filesystem paths, and fails fast on invalid configuration.
+Читает `.env`, валидирует обязательные значения, раскрывает filesystem paths и fail-fast падает на невалидной конфигурации.
 
 `PeerRef`
 
-A stable serialized chat reference passed between tools. It should be explicit enough to avoid title-only matching once a chat has been resolved.
+Стабильная сериализованная ссылка на чат, которую tools передают друг другу. Она должна быть достаточно явной, чтобы после resolve не полагаться на title-only matching.
 
-## Configuration
+## Конфигурация
 
-Required `.env` values:
+Обязательные `.env` значения:
 
 - `TELEGRAM_API_ID`
 - `TELEGRAM_API_HASH`
 
-Optional `.env` values:
+Опциональные `.env` значения:
 
-- `TELEGRAM_SESSION_PATH`, defaulting to `~/.config/telegram-mcp/session`
+- `TELEGRAM_SESSION_PATH`, default: `~/.config/telegram-mcp/session`
 
-The server should fail at startup if required config is missing or malformed. It should not start in a degraded state.
+Сервер должен падать при старте, если обязательный config отсутствует или невалиден. Он не должен запускаться в degraded state.
 
-## Authorization And Session Flow
+## Авторизация и сессия
 
 `telegram-mcp auth`:
 
-1. Loads `.env`.
-2. Prompts for phone number.
-3. Prompts for Telegram login code.
-4. Prompts for 2FA password if Telegram requires it.
-5. Saves the resulting GramJS `StringSession` via `SessionStore`.
-6. Verifies the saved session by reconnecting or fetching the current user.
+1. Загружает `.env`.
+2. Спрашивает phone number.
+3. Спрашивает Telegram login code.
+4. Спрашивает 2FA password, если Telegram его требует.
+5. Сохраняет полученный GramJS `StringSession` через `SessionStore`.
+6. Проверяет сохраненную сессию через reconnect или получение текущего пользователя.
 
 `telegram-mcp` MCP server:
 
-1. Loads `.env`.
-2. Loads session via `SessionStore`.
-3. Fails with `AUTH_REQUIRED` if the session file is missing or invalid.
-4. Connects GramJS client non-interactively.
-5. Registers read-only tools over stdio.
+1. Загружает `.env`.
+2. Загружает session через `SessionStore`.
+3. Падает с `AUTH_REQUIRED`, если session file отсутствует или невалиден.
+4. Подключает GramJS client non-interactively.
+5. Регистрирует read-only tools поверх `stdio`.
 
-The MCP server must never prompt for credentials during stdio operation.
+MCP server никогда не должен спрашивать credentials во время `stdio` operation.
 
-## Fail-Fast Development Rule
+## Fail-Fast правило разработки
 
-The first version should fail loudly on missing config, missing session, invalid peer references, unsupported Telegram peer types, and unexpected Telegram responses.
+Первая версия должна громко падать на missing config, missing session, invalid peer references, unsupported Telegram peer types и неожиданных Telegram responses.
 
-Do not silently return empty arrays for conditions that are probably configuration, authorization, parsing, or access errors. Empty arrays are valid only for successful Telegram calls with no matching results.
+Нельзя молча возвращать пустые массивы для ситуаций, которые вероятно являются configuration, authorization, parsing или access errors. Пустой массив валиден только для успешного Telegram call без результатов.
 
-## Tool Surface
+## Tool surface
 
-All tools are read-only.
+Все tools read-only.
 
 ### `telegram_list_chats`
 
-Lists recent dialogs visible to the authenticated user.
+Список последних dialogs, видимых авторизованному пользователю.
 
 Inputs:
 
@@ -125,11 +129,11 @@ Inputs:
 Output:
 
 - `chats`: array of chat summaries.
-- Each summary includes `chat_ref`, `title`, `username`, `type`, and best-effort metadata available from the dialog.
+- Каждый summary содержит `chat_ref`, `title`, `username`, `type` и best-effort metadata из dialog.
 
 ### `telegram_search_chats`
 
-Searches chats, groups, channels, and users by query.
+Ищет чаты, группы, каналы и пользователей по query.
 
 Inputs:
 
@@ -143,21 +147,21 @@ Output:
 
 ### `telegram_resolve_chat`
 
-Resolves a user-supplied chat reference into a stable `chat_ref`.
+Превращает пользовательскую ссылку на чат в стабильный `chat_ref`.
 
 Inputs:
 
-- `ref`: string. May be a public username, Telegram link, serialized `chat_ref`, numeric id, or exact title candidate.
+- `ref`: string. Может быть public username, Telegram link, serialized `chat_ref`, numeric id или exact title candidate.
 
 Output:
 
 - `chat`: single chat summary with stable `chat_ref`.
 
-Ambiguous title matches must fail with a typed ambiguity error instead of guessing.
+Ambiguous title matches должны падать typed ambiguity error, а не выбирать первый результат.
 
 ### `telegram_get_chat`
 
-Returns metadata for a resolved chat.
+Возвращает metadata для resolved chat.
 
 Inputs:
 
@@ -169,7 +173,7 @@ Output:
 
 ### `telegram_search_messages`
 
-Searches messages globally or within one chat.
+Ищет сообщения глобально или внутри одного чата.
 
 Inputs:
 
@@ -182,11 +186,11 @@ Inputs:
 Output:
 
 - `messages`: array of message summaries.
-- Each result includes `chat_ref`, `message_id`, `date`, `sender` when available, `text`, and a stable message link when Telegram exposes enough data.
+- Каждый result содержит `chat_ref`, `message_id`, `date`, `sender` when available, `text` и stable message link, если Telegram exposes enough data.
 
 ### `telegram_get_messages`
 
-Reads message history for a chat.
+Читает message history для чата.
 
 Inputs:
 
@@ -197,12 +201,12 @@ Inputs:
 
 Output:
 
-- `messages`: array sorted from older to newer unless Telegram constraints force another order, in which case the output must state the order.
+- `messages`: array sorted from older to newer unless Telegram constraints force another order; if so, output must state the order.
 - `page`: pagination hints for the next request.
 
 ### `telegram_get_message`
 
-Fetches one message by chat and message id.
+Получает одно сообщение по chat и message id.
 
 Inputs:
 
@@ -215,7 +219,7 @@ Output:
 
 ### `telegram_get_message_context`
 
-Fetches a target message plus nearby messages in the same chat.
+Получает target message и соседние сообщения в том же чате.
 
 Inputs:
 
@@ -230,9 +234,9 @@ Output:
 - `before`: array of preceding messages.
 - `after`: array of following messages.
 
-This tool exists because search hits without surrounding context are usually not enough for an agent to answer accurately.
+Этот tool нужен, потому что search hits без surrounding context обычно недостаточны для точного ответа агента.
 
-## Normalized Data Shapes
+## Нормализованные data shapes
 
 ### Chat Summary
 
@@ -257,63 +261,63 @@ This tool exists because search hits without surrounding context are usually not
 
 ### Error
 
-Errors should be normalized before returning through MCP:
+Errors должны нормализоваться перед возвратом через MCP:
 
-- `AUTH_REQUIRED`: no session, invalid session, expired session, or Telegram demands re-auth.
+- `AUTH_REQUIRED`: no session, invalid session, expired session или Telegram требует re-auth.
 - `CONFIG_INVALID`: missing or invalid `.env` values.
 - `CHAT_NOT_FOUND`: peer resolution failed.
 - `CHAT_AMBIGUOUS`: title search found multiple candidates.
 - `MESSAGE_NOT_FOUND`: requested message id does not exist or is inaccessible.
-- `ACCESS_DENIED`: private channel, group, or user unavailable to the current account.
-- `RATE_LIMITED`: Telegram flood wait or rate limit, with retry hint if available.
+- `ACCESS_DENIED`: private channel, group или user unavailable to the current account.
+- `RATE_LIMITED`: Telegram flood wait или rate limit, с retry hint если доступен.
 - `TELEGRAM_ERROR`: known Telegram error not covered above.
 - `INTERNAL_ERROR`: unexpected local bug.
 
-## Future Server Path
+## Будущий server path
 
-The first version should avoid server implementation, but preserve these extension points:
+Первая версия не должна реализовывать server mode, но должна сохранить extension points:
 
-- Replace `FileSessionStore` with `EncryptedDbSessionStore`.
-- Replace `CliAuthFlow` with a web-based login flow.
-- Add HTTP transport separately from stdio.
-- Add per-user authorization around tool calls.
-- Add audit logging for read operations.
+- Заменить `FileSessionStore` на `EncryptedDbSessionStore`.
+- Заменить `CliAuthFlow` на web-based login flow.
+- Добавить HTTP transport отдельно от `stdio`.
+- Добавить per-user authorization вокруг tool calls.
+- Добавить audit logging для read operations.
 
-The future server path must not require changing the public tool contracts.
+Будущий server path не должен требовать изменения публичных tool contracts.
 
-## Testing Strategy
+## Стратегия тестирования
 
 Unit tests:
 
-- Config validation fails fast on missing and malformed `.env`.
-- `FileSessionStore` loads, saves, and rejects empty sessions.
-- `PeerRef` serialization/deserialization is stable.
+- Config validation fail-fast падает на missing и malformed `.env`.
+- `FileSessionStore` загружает, сохраняет и отвергает empty sessions.
+- `PeerRef` serialization/deserialization stable.
 - Tool schemas reject invalid input.
 - Error normalization maps GramJS/Telegram errors to typed errors.
 
 Adapter tests:
 
-- Use a mocked GramJS client.
-- Verify each adapter method calls the expected Telegram operation.
-- Verify pagination and date filters are translated consistently.
-- Verify ambiguous chat resolution fails instead of guessing.
+- Используют mocked GramJS client.
+- Проверяют, что каждый adapter method вызывает ожидаемую Telegram operation.
+- Проверяют, что pagination и date filters translated consistently.
+- Проверяют, что ambiguous chat resolution fails instead of guessing.
 
 Manual smoke tests:
 
 1. Run `telegram-mcp auth`.
-2. Start MCP server over stdio.
+2. Start MCP server over `stdio`.
 3. Call `telegram_list_chats`.
 4. Call `telegram_search_chats`.
 5. Call `telegram_search_messages`.
 6. Call `telegram_get_message_context` on one search result.
 
-No test should require sending, forwarding, joining, or modifying Telegram state.
+Ни один test не должен требовать sending, forwarding, joining или modifying Telegram state.
 
-## Open Decisions For Implementation Plan
+## Открытые решения для implementation plan
 
 - Exact MCP SDK package and version.
 - Exact CLI package layout.
 - Exact `chat_ref` serialization format.
-- Whether to use Vitest or Node's built-in test runner.
+- Vitest или Node's built-in test runner.
 
-These are implementation choices and should be settled in the implementation plan, not by changing the product design.
+Это implementation choices. Их нужно решить в implementation plan, а не через изменение product design.
