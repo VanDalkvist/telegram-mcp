@@ -184,7 +184,7 @@ For a local live smoke test against your configured Telegram account:
 npm run smoke:live
 ```
 
-The live smoke runner prints only scenario names, success flags, counts, and error codes. It does not print chat titles, usernames, `chat_ref` values, message ids, or message text.
+The live smoke runner prints only scenario names, success flags, counts, and error codes. It does not print chat titles, usernames, `chat_ref` values, message ids, or message text. It attempts every MCP tool handler; account-dependent scenarios such as threads, discussions, and participants are reported as optional failures when Telegram does not support that object.
 
 ## Development
 
@@ -193,5 +193,7 @@ npm test
 npm run typecheck
 npm run build
 ```
+
+GitHub Actions runs deterministic CI checks on push and pull request: install, typecheck, tests, build, and package dry run. Live Telegram smoke is intentionally local-only because it needs a private Telegram session.
 
 The public architecture notes live in [docs/design.md](docs/design.md).

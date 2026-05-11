@@ -609,6 +609,30 @@ Run `npm run smoke:live` against the configured local Telegram account. Expected
 
 Use the mandatory gate above and append a `Slice 7: Redacted live smoke` entry to `docs/superpowers/reviews/2026-05-11-telegram-mcp-arch-hardening-review.md`.
 
+## Task 9: CI Build Checks And Full Tool Smoke Coverage
+
+**Files:**
+- Create: `.github/workflows/ci.yml`
+- Modify: `tools/live-smoke.mjs`
+- Modify: `README.md`
+- Modify: `docs/superpowers/reviews/2026-05-11-telegram-mcp-arch-hardening-review.md`
+
+- [x] **Step 1: Add deterministic GitHub build checks**
+
+Create a GitHub Actions workflow for push, pull request, and manual dispatch. It must run `npm ci`, `npm run typecheck`, `npm test`, `npm run build`, and `npm pack --dry-run`. Do not run live Telegram smoke in CI because it requires private Telegram credentials and session state.
+
+- [x] **Step 2: Expand live smoke to every MCP tool handler**
+
+Update the live smoke runner to attempt all MCP tool handlers. Keep output redacted and count-only. Mark Telegram-object-dependent checks such as thread, discussion, and participants as optional because a real account may not have a compatible object in the sampled chat.
+
+- [x] **Step 3: Run verification**
+
+Run local deterministic checks and `npm run smoke:live`. Expected: deterministic checks pass; live smoke reports all tool handlers attempted without printing private Telegram data.
+
+- [x] **Step 4: Run post-slice architecture review gate**
+
+Use the mandatory gate above and append a `Slice 8: CI build checks and full tool smoke coverage` entry to `docs/superpowers/reviews/2026-05-11-telegram-mcp-arch-hardening-review.md`.
+
 ## Future Follow-Up
 
 After this pass, do not add new Telegram tool families without first checking `docs/project-arch-rules.md` and the focused query modules for the correct owner. If a new tool crosses folder/chat/message/thread boundaries, add a small orchestrator instead of growing a broad adapter again.

@@ -55,3 +55,11 @@
 - Business path review: pass. The live examples cover `connect -> list folders/chats -> get chat -> recent messages -> context -> search messages/media`, which is the core agent retrieval path, without turning private Telegram content into fixtures or committed test data.
 - Residual risks: live smoke depends on the local Telegram account state and `.env`, so it is intentionally an operator smoke test rather than a deterministic CI test.
 - Decision: proceed.
+
+## Slice 8: CI Build Checks And Full Tool Smoke Coverage
+
+- Verification: `ruby -e "require 'yaml'; YAML.load_file('.github/workflows/ci.yml'); puts 'yaml ok'"` -> pass. `npm test` -> pass; 12 test files and 68 tests passed. `npm run typecheck` -> pass. `npm pack --dry-run` -> pass after build. `npm run smoke:live` -> pass with `tools_total: 19`, `tools_attempted: 19`, `tools_ok: 19`, `tools_missed: 0`.
+- AP review: AP-017/AP-024/AP-042 pass because the expanded live smoke runner still prints only redacted scenario names, counts, booleans, page order, and error codes; it does not print Telegram refs, chat labels, message ids, message text, sessions, phone numbers, or API credentials. AP-032 pass because all live scenarios use existing read-only tool handlers. PAR-001/AP-011 pass because the smoke runner remains a single tooling module with the business purpose of full redacted tool coverage, and the new CI file is workflow infrastructure rather than a Telegram query module.
+- Business path review: pass. GitHub now blocks regressions in deterministic build/test/package checks, while local `npm run smoke:live` verifies every MCP tool against the configured account without committing live Telegram data.
+- Residual risks: GitHub CI intentionally does not run live Telegram smoke because that would require private Telegram session material in CI. CI action versions were selected from current official GitHub/action release documentation; the local repo does not contain the `scripts/ci_monitor.cjs` helper referenced by the generic workflow skill, so workflow-run monitoring starts after this workflow is pushed.
+- Decision: proceed.
