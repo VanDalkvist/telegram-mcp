@@ -10,42 +10,15 @@ export interface BuildTelegramQueriesDeps {
   createClient?: (session: string, config: AppConfig) => AuthenticatedGramJsLikeClient;
 }
 
-export function createLazyTelegramQueries(
-  config: AppConfig,
-  deps: BuildTelegramQueriesDeps = {}
-): TelegramQueries {
-  let queriesPromise: Promise<TelegramQueries> | undefined;
-  const getQueries = (): Promise<TelegramQueries> => {
-    queriesPromise ??= buildTelegramQueries(config, deps);
-    return queriesPromise;
-  };
-
-  return {
-    listFolders: async (input) => (await getQueries()).listFolders(input),
-    resolveFolder: async (input) => (await getQueries()).resolveFolder(input),
-    listChats: async (input) => (await getQueries()).listChats(input),
-    searchChats: async (input) => (await getQueries()).searchChats(input),
-    resolveChat: async (input) => (await getQueries()).resolveChat(input),
-    getChat: async (input) => (await getQueries()).getChat(input),
-    searchMessages: async (input) => (await getQueries()).searchMessages(input),
-    getRecentMessages: async (input) => (await getQueries()).getRecentMessages(input),
-    searchMessagesPage: async (input) => (await getQueries()).searchMessagesPage(input),
-    searchMessagesBatch: async (input) => (await getQueries()).searchMessagesBatch(input),
-    searchMedia: async (input) => (await getQueries()).searchMedia(input),
-    getMessages: async (input) => (await getQueries()).getMessages(input),
-    getMessage: async (input) => (await getQueries()).getMessage(input),
-    getMessageContext: async (input) => (await getQueries()).getMessageContext(input),
-    getThread: async (input) => (await getQueries()).getThread(input),
-    getDiscussion: async (input) => (await getQueries()).getDiscussion(input),
-    getSearchCounters: async (input) => (await getQueries()).getSearchCounters(input),
-    getChatParticipants: async (input) => (await getQueries()).getChatParticipants(input)
-  };
+export interface TelegramRuntime {
+  queries: TelegramQueries;
+  dispose(): Promise<void>;
 }
 
-export async function buildTelegramQueries(
+export async function buildTelegramRuntime(
   config: AppConfig,
   deps: BuildTelegramQueriesDeps = {}
-): Promise<TelegramQueries> {
+): Promise<TelegramRuntime> {
   const sessionStore = deps.sessionStore ?? new FileSessionStore(config.sessionPath);
   const session = await loadSession(sessionStore);
   const createClient = deps.createClient ?? createGramJsClient;
@@ -59,10 +32,14 @@ export async function buildTelegramQueries(
       });
     }
   } catch (error) {
+    await disconnectClientAfterStartupFailure(client);
     throw normalizeKnownError(error);
   }
 
-  return new TelegramClientAdapter(client);
+  return {
+    queries: new TelegramClientAdapter(client),
+    dispose: () => disconnectClient(client)
+  };
 }
 
 async function loadSession(sessionStore: SessionStore): Promise<string> {
@@ -86,6 +63,18 @@ function normalizeKnownError(error: unknown): AppError {
   }
 
   return normalizeTelegramError(error);
+}
+
+async function disconnectClient(client: AuthenticatedGramJsLikeClient): Promise<void> {
+  await client.disconnect?.();
+}
+
+async function disconnectClientAfterStartupFailure(client: AuthenticatedGramJsLikeClient): Promise<void> {
+  try {
+    await disconnectClient(client);
+  } catch {
+    // Preserve the original startup/auth error; the server logs cleanup failures after runtime ownership begins.
+  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

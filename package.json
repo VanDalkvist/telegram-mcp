@@ -4,6 +4,14 @@
   "description": "Read-only Model Context Protocol server for searching and reading Telegram via a user MTProto session.",
   "license": "MIT",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/VanDalkvist/telegram-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/VanDalkvist/telegram-mcp/issues"
+  },
+  "homepage": "https://github.com/VanDalkvist/telegram-mcp#readme",
   "bin": {
     "telegram-mcp": "./dist/cli/index.js"
   },
@@ -20,7 +28,9 @@
   ],
   "scripts": {
     "auth": "tsx src/cli/index.ts auth",
-    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "build": "npm run clean && tsc -p tsconfig.build.json",
+    "prepack": "npm run build",
     "start": "tsx src/cli/index.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"

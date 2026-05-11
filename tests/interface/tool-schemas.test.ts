@@ -127,6 +127,19 @@ describe("toolSchemas", () => {
 
   test("rejects invalid date ranges and non-positive ids", () => {
     expect(() => toolSchemas.telegram_search_messages.parse({ query: "x", from_date: "not-date" })).toThrow();
+    expect(() => toolSchemas.telegram_search_messages.parse({ query: "x", from_date: "2026-02-30" })).toThrow();
+    expect(() => toolSchemas.telegram_search_messages.parse({ query: "x", from_date: "2026-05-08T25:00:00Z" })).toThrow();
+    expect(() => toolSchemas.telegram_search_messages.parse({ query: "x", from_date: "2026-05-08T10:00:00Z" })).toThrow();
+    expect(() => toolSchemas.telegram_search_messages.parse({ query: "x", from_date: "2026-05-08T10:00:00+03:00" })).toThrow();
+    const reversedRange = {
+      from_date: "2026-05-15",
+      to_date: "2026-05-08"
+    };
+    expect(() => toolSchemas.telegram_search_messages.parse({ query: "x", ...reversedRange })).toThrow();
+    expect(() => toolSchemas.telegram_get_recent_messages.parse({ chat_ref: "ref", ...reversedRange })).toThrow();
+    expect(() => toolSchemas.telegram_search_messages_page.parse({ query: "x", ...reversedRange })).toThrow();
+    expect(() => toolSchemas.telegram_search_messages_batch.parse({ queries: ["x"], ...reversedRange })).toThrow();
+    expect(() => toolSchemas.telegram_search_media.parse({ media_type: "links", ...reversedRange })).toThrow();
     expect(() => toolSchemas.telegram_get_message.parse({ chat_ref: "ref", message_id: 0 })).toThrow();
   });
 });

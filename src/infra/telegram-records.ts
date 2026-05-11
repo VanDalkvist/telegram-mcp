@@ -1,4 +1,5 @@
 import bigInt, { type BigInteger } from "big-integer";
+import { strictIsoDateTimestampMs, type DateWindowBoundary } from "../domain/date-window.js";
 import { AppError, normalizeTelegramError } from "../domain/errors.js";
 
 export function normalizeKnownError(error: unknown): AppError {
@@ -60,15 +61,29 @@ export function readTextWithEntities(value: unknown): string | undefined {
 
 export function normalizeDate(value: unknown): string {
   if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) {
+      throwInvalidDate();
+    }
     return value.toISOString();
   }
   if (typeof value === "number") {
-    return new Date(value * 1000).toISOString();
+    if (!Number.isFinite(value)) {
+      throwInvalidDate();
+    }
+    const date = new Date(value * 1000);
+    if (Number.isNaN(date.getTime())) {
+      throwInvalidDate();
+    }
+    return date.toISOString();
   }
-  if (typeof value === "string" && !Number.isNaN(Date.parse(value))) {
-    return new Date(value).toISOString();
+  if (typeof value === "string") {
+    const timestampMs = strictIsoDateTimestampMs(value);
+    if (timestampMs === undefined) {
+      throwInvalidDate();
+    }
+    return new Date(timestampMs).toISOString();
   }
-  return new Date(0).toISOString();
+  throwInvalidDate();
 }
 
 export function readReplyToId(value: unknown): number | undefined {
@@ -76,8 +91,16 @@ export function readReplyToId(value: unknown): number | undefined {
   return readNumber(record.replyToMsgId ?? record.reply_to_msg_id);
 }
 
-export function toUnixSeconds(value: string): number {
-  return Math.floor(new Date(value).getTime() / 1000);
+export function toUnixSeconds(value: string, boundary: DateWindowBoundary = "start"): number {
+  return Math.floor(toDateWindowTimestampMs(value, boundary) / 1000);
+}
+
+export function toDateWindowTimestampMs(value: string, boundary: DateWindowBoundary = "start"): number {
+  const timestampMs = strictIsoDateTimestampMs(value, boundary);
+  if (timestampMs === undefined) {
+    throwInvalidDate();
+  }
+  return timestampMs;
 }
 
 export function toBigInteger(value: string): BigInteger {
@@ -90,4 +113,10 @@ export function asRecord(value: unknown): Record<string, unknown> {
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function throwInvalidDate(): never {
+  throw new AppError("TELEGRAM_ERROR", "Telegram message is missing a valid date", {
+    publicMessage: "Telegram returned an unsupported message"
+  });
 }

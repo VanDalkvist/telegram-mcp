@@ -244,6 +244,73 @@ describe("TelegramClientAdapter", () => {
     });
   });
 
+  test("fails unsupported Telegram messages without valid dates", async () => {
+    const chatRef = chatRefFor({ id: "1", type: "group", title: "Team" });
+    const client = makeClient({
+      entity: { id: "1", title: "Team" },
+      messages: [{ id: 42, message: "missing date" }]
+    });
+    const adapter = new TelegramClientAdapter(client as unknown as GramJsLikeClient);
+
+    await expect(adapter.getMessages({ chat_ref: chatRef, limit: 1 })).rejects.toMatchObject({
+      code: "TELEGRAM_ERROR"
+    });
+  });
+
+  test("fails unsupported Telegram messages with invalid Date objects or timestamps", async () => {
+    const chatRef = chatRefFor({ id: "1", type: "group", title: "Team" });
+    const client = makeClient({
+      entity: { id: "1", title: "Team" },
+      messages: [{ id: 42, date: new Date("bad"), message: "invalid date object" }]
+    });
+    const adapter = new TelegramClientAdapter(client as unknown as GramJsLikeClient);
+
+    await expect(adapter.getMessages({ chat_ref: chatRef, limit: 1 })).rejects.toMatchObject({
+      code: "TELEGRAM_ERROR"
+    });
+
+    client.getMessages.mockResolvedValueOnce([{ id: 43, date: Number.NaN, message: "invalid timestamp" }]);
+    await expect(adapter.getMessages({ chat_ref: chatRef, limit: 1 })).rejects.toMatchObject({
+      code: "TELEGRAM_ERROR"
+    });
+
+    client.getMessages.mockResolvedValueOnce([{ id: 44, date: "2026-02-30", message: "invalid string date" }]);
+    await expect(adapter.getMessages({ chat_ref: chatRef, limit: 1 })).rejects.toMatchObject({
+      code: "TELEGRAM_ERROR"
+    });
+  });
+
+  test("filters chat-scoped message search by the full requested date window", async () => {
+    const chatRef = chatRefFor({ id: "1", type: "group", title: "Team" });
+    const entity = { id: "1", title: "Team" };
+    const client = makeClient({
+      entity,
+      messages: [
+        { id: 41, date: new Date("2026-05-07T10:00:00Z"), message: "too old" },
+        { id: 42, date: new Date("2026-05-08T10:00:00Z"), message: "inside" },
+        { id: 43, date: new Date("2026-05-15T23:59:59Z"), message: "inside final day" }
+      ]
+    });
+    const adapter = new TelegramClientAdapter(client as unknown as GramJsLikeClient);
+
+    const result = await adapter.searchMessages({
+      query: "event",
+      chat_ref: chatRef,
+      limit: 10,
+      from_date: "2026-05-08",
+      to_date: "2026-05-15"
+    });
+
+    expect(result.messages.map((message) => message.message_id)).toEqual([43, 42]);
+    expect(client.getMessages).toHaveBeenCalledWith(entity, {
+      limit: 10,
+      search: "event",
+      offsetId: undefined,
+      offsetDate: toUnixSeconds("2026-05-15", "end"),
+      waitTime: 0
+    });
+  });
+
   test("uses access hash from peer_ref for private channel lookup", async () => {
     const chatRef = JSON.stringify({
       version: 1,
@@ -335,7 +402,7 @@ describe("TelegramClientAdapter", () => {
     expect(client.getMessages).toHaveBeenCalledWith(entity, {
       limit: 10,
       search: "коучинг",
-      offsetDate: toUnixSeconds("2026-05-15"),
+      offsetDate: toUnixSeconds("2026-05-15", "end"),
       waitTime: 0
     });
     await expect(
@@ -348,6 +415,69 @@ describe("TelegramClientAdapter", () => {
         to_date: "2026-05-15"
       })
     ).resolves.toEqual({ messages: [] });
+  });
+
+  test("global search returns chat refs that keep access hashes for follow-up reads", async () => {
+    const client = makeClient({});
+    client.invoke.mockResolvedValueOnce({
+      messages: [
+        { id: 77, date: new Date("2026-05-10T10:00:00Z"), message: "hit", peerId: { channelId: "100" } }
+      ],
+      chats: [{ id: "100", accessHash: "200", title: "Private Channel" }],
+      users: []
+    });
+    const adapter = new TelegramClientAdapter(client as unknown as GramJsLikeClient);
+
+    const result = await adapter.searchMessages({ query: "hit", limit: 10 });
+
+    expect(parsePeerRef(result.messages[0]!.chat_ref)).toMatchObject({
+      id: "100",
+      accessHash: "200",
+      title: "Private Channel",
+      type: "channel"
+    });
+  });
+
+  test("global search fails when Telegram omits entities needed for follow-up refs", async () => {
+    const client = makeClient({});
+    client.invoke.mockResolvedValueOnce({
+      messages: [
+        { id: 78, date: new Date("2026-05-10T10:00:00Z"), message: "hit", peerId: { channelId: "100" } }
+      ],
+      chats: [],
+      users: []
+    });
+    const adapter = new TelegramClientAdapter(client as unknown as GramJsLikeClient);
+
+    await expect(adapter.searchMessages({ query: "hit", limit: 10 })).rejects.toMatchObject({
+      code: "TELEGRAM_ERROR"
+    });
+  });
+
+  test("filters global message search by the full requested date window", async () => {
+    const client = makeClient({});
+    client.invoke.mockResolvedValueOnce({
+      messages: [
+        { id: 75, date: new Date("2026-05-07T10:00:00Z"), message: "too old", peerId: { channelId: "100" } },
+        { id: 76, date: new Date("2026-05-15T23:59:59Z"), message: "inside final day", peerId: { channelId: "100" } },
+        { id: 77, date: new Date("2026-05-16T00:00:00Z"), message: "too new", peerId: { channelId: "100" } }
+      ],
+      chats: [{ id: "100", accessHash: "200", title: "Private Channel" }],
+      users: []
+    });
+    const adapter = new TelegramClientAdapter(client as unknown as GramJsLikeClient);
+
+    const result = await adapter.searchMessages({
+      query: "hit",
+      limit: 10,
+      from_date: "2026-05-08",
+      to_date: "2026-05-15"
+    });
+
+    expect(result.messages.map((message) => message.message_id)).toEqual([76]);
+    const request = client.invoke.mock.calls[0]![0] as { minDate?: number; maxDate?: number };
+    expect(request.minDate).toBe(toUnixSeconds("2026-05-08"));
+    expect(request.maxDate).toBe(toUnixSeconds("2026-05-15", "end"));
   });
 
   test("reads recent messages by date window for a chat", async () => {
@@ -373,7 +503,7 @@ describe("TelegramClientAdapter", () => {
     expect(result.page).toMatchObject({ order: "newer_to_older" });
     expect(client.getMessages).toHaveBeenCalledWith(entity, {
       limit: 20,
-      offsetDate: toUnixSeconds("2026-05-15"),
+      offsetDate: toUnixSeconds("2026-05-15", "end"),
       waitTime: 0
     });
   });
@@ -516,8 +646,12 @@ function folderRefFor(input: { id: number; title: string }): string {
   return JSON.stringify({ version: 1, id: input.id, title: input.title });
 }
 
-function toUnixSeconds(value: string): number {
-  return Math.floor(new Date(value).getTime() / 1000);
+function toUnixSeconds(value: string, boundary: "start" | "end" = "start"): number {
+  const date = new Date(value);
+  if (boundary === "end" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return Math.floor((date.getTime() + 24 * 60 * 60 * 1000 - 1) / 1000);
+  }
+  return Math.floor(date.getTime() / 1000);
 }
 
 type MockGramJsLikeClient = {

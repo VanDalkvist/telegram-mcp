@@ -19,13 +19,15 @@ import {
   asRecord,
   isRecord,
   normalizeDate,
+  readArray,
   readArrayLength,
   readNumber,
   readReplyToId,
   readString,
   readTextWithEntities,
   stringifyId,
-  stringifyOptionalId
+  stringifyOptionalId,
+  toDateWindowTimestampMs
 } from "./telegram-records.js";
 
 export function normalizeFolderFilters(response: unknown): FolderSummary[] {
@@ -94,10 +96,11 @@ export function normalizeMessages(messages: unknown[], chatRef: string): Message
 export function normalizeGlobalSearchMessages(response: unknown): MessageSummary[] {
   const record = asRecord(response);
   const messages = Array.isArray(record.messages) ? record.messages : [];
+  const entitiesByPeer = buildPeerEntityMap(response);
   return messages
     .filter((message) => message !== undefined && message !== null)
     .map((message) => {
-      const chatRef = chatRefFromMessagePeer(message);
+      const chatRef = chatRefFromMessagePeer(message, entitiesByPeer, { requireEntity: true });
       return normalizeMessage(message, chatRef);
     });
 }
@@ -105,17 +108,18 @@ export function normalizeGlobalSearchMessages(response: unknown): MessageSummary
 export function normalizeMessagesFromResponse(response: unknown, fallbackChatRef: string): MessageSummary[] {
   const record = asRecord(response);
   const messages = Array.isArray(record.messages) ? record.messages : [];
+  const entitiesByPeer = buildPeerEntityMap(response);
   return messages
     .filter((message) => message !== undefined && message !== null)
     .map((message) => {
-      const peerChatRef = chatRefFromMessagePeer(message);
+      const peerChatRef = chatRefFromMessagePeer(message, entitiesByPeer);
       return normalizeMessage(message, peerChatRef.includes("unknown") ? fallbackChatRef : peerChatRef);
     });
 }
 
 export function filterMessagesByDate(messages: MessageSummary[], fromDate?: string | undefined, toDate?: string | undefined): MessageSummary[] {
-  const minDate = fromDate === undefined ? undefined : Date.parse(fromDate);
-  const maxDate = toDate === undefined ? undefined : Date.parse(toDate);
+  const minDate = fromDate === undefined ? undefined : toDateWindowTimestampMs(fromDate, "start");
+  const maxDate = toDate === undefined ? undefined : toDateWindowTimestampMs(toDate, "end");
   return messages.filter((message) => {
     const timestamp = Date.parse(message.date);
     return (minDate === undefined || timestamp >= minDate) && (maxDate === undefined || timestamp <= maxDate);
@@ -335,7 +339,33 @@ interface SearchCursor {
   offset_rate?: number;
 }
 
-function chatRefFromMessagePeer(message: unknown): string {
+function buildPeerEntityMap(response: unknown): Map<string, unknown> {
+  const record = asRecord(response);
+  const entities = [
+    ...readArray(record.chats),
+    ...readArray(record.users)
+  ];
+  const map = new Map<string, unknown>();
+  for (const entity of entities) {
+    const entityRecord = asRecord(entity);
+    const id = stringifyOptionalId(entityRecord.id);
+    if (id === undefined) {
+      continue;
+    }
+    const type = chatTypeFromEntity(entity);
+    map.set(`${type}:${id}`, entity);
+    if (type === "channel" || type === "group") {
+      map.set(`channel:${id}`, entity);
+    }
+  }
+  return map;
+}
+
+function chatRefFromMessagePeer(
+  message: unknown,
+  entitiesByPeer = new Map<string, unknown>(),
+  options: { requireEntity?: boolean } = {}
+): string {
   const record = asRecord(message);
   const peer = asRecord(record.peerId ?? record.peer_id ?? {});
   const id =
@@ -343,6 +373,15 @@ function chatRefFromMessagePeer(message: unknown): string {
     stringifyOptionalId(record.chatId ?? record.chat_id) ??
     "unknown";
   const type: ChatType = peer.userId !== undefined ? "user" : peer.chatId !== undefined ? "group" : "channel";
+  const entity = entitiesByPeer.get(`${type}:${id}`);
+  if (entity !== undefined) {
+    return chatSummaryFromEntity(entity).chat_ref;
+  }
+  if (options.requireEntity === true) {
+    throw new AppError("TELEGRAM_ERROR", "Telegram search result is missing peer entity", {
+      publicMessage: "Telegram returned an unsupported message"
+    });
+  }
   return serializePeerRef({ version: 1, type, id });
 }
 

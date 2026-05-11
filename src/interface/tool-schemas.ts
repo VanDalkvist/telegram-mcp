@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isStrictIsoDateOnlyString, strictIsoDateTimestampMs } from "../domain/date-window.js";
 
 const typeSchema = z.enum(["any", "channel", "group", "user"]).default("any");
 const mediaTypeSchema = z.enum([
@@ -21,8 +22,8 @@ const participantFilterSchema = z.enum(["recent", "admins", "bots"]).default("re
 const positiveInt = z.number().int().positive();
 const chatRef = z.string().trim().min(1);
 const folderRef = z.string().trim().min(1);
-const isoDateString = z.string().refine((value) => !Number.isNaN(Date.parse(value)), {
-  message: "Expected ISO-compatible date string"
+const isoDateString = z.string().refine(isStrictIsoDateOnlyString, {
+  message: "Expected date in YYYY-MM-DD format"
 });
 const folderChatLimit = z.number().int().positive().max(50).default(5);
 const messageSearchLimit = z.number().int().positive().max(50).default(20);
@@ -30,6 +31,19 @@ const optionalScopeRefinement = {
   message: "chat_ref and folder_ref cannot be used together",
   path: ["folder_ref"]
 };
+const dateRangeRefinement = {
+  message: "from_date must be earlier than or equal to to_date",
+  path: ["from_date"]
+};
+
+function hasValidDateRange(value: { from_date?: string | undefined; to_date?: string | undefined }): boolean {
+  if (value.from_date === undefined || value.to_date === undefined) {
+    return true;
+  }
+  const fromTime = strictIsoDateTimestampMs(value.from_date, "start");
+  const toTime = strictIsoDateTimestampMs(value.to_date, "end");
+  return fromTime !== undefined && toTime !== undefined && fromTime <= toTime;
+}
 
 export const toolSchemas = {
   telegram_list_folders: z.object({}),
@@ -66,7 +80,9 @@ export const toolSchemas = {
     limit: messageSearchLimit,
     from_date: isoDateString.optional(),
     to_date: isoDateString.optional()
-  }).refine((value) => value.chat_ref === undefined || value.folder_ref === undefined, optionalScopeRefinement),
+  })
+    .refine((value) => value.chat_ref === undefined || value.folder_ref === undefined, optionalScopeRefinement)
+    .refine(hasValidDateRange, dateRangeRefinement),
   telegram_get_recent_messages: z.object({
     chat_ref: chatRef.optional(),
     folder_ref: folderRef.optional(),
@@ -74,10 +90,12 @@ export const toolSchemas = {
     limit: messageSearchLimit,
     from_date: isoDateString,
     to_date: isoDateString
-  }).refine((value) => (value.chat_ref === undefined) !== (value.folder_ref === undefined), {
-    message: "Exactly one of chat_ref or folder_ref is required",
-    path: ["chat_ref"]
-  }),
+  })
+    .refine((value) => (value.chat_ref === undefined) !== (value.folder_ref === undefined), {
+      message: "Exactly one of chat_ref or folder_ref is required",
+      path: ["chat_ref"]
+    })
+    .refine(hasValidDateRange, dateRangeRefinement),
   telegram_search_messages_page: z.object({
     query: z.string().trim().min(1),
     chat_ref: chatRef.optional(),
@@ -87,7 +105,9 @@ export const toolSchemas = {
     from_date: isoDateString.optional(),
     to_date: isoDateString.optional(),
     cursor: z.string().trim().min(1).optional()
-  }).refine((value) => value.chat_ref === undefined || value.folder_ref === undefined, optionalScopeRefinement),
+  })
+    .refine((value) => value.chat_ref === undefined || value.folder_ref === undefined, optionalScopeRefinement)
+    .refine(hasValidDateRange, dateRangeRefinement),
   telegram_search_messages_batch: z.object({
     queries: z.array(z.string().trim().min(1)).min(1).max(10),
     chat_ref: chatRef.optional(),
@@ -96,7 +116,9 @@ export const toolSchemas = {
     limit: messageSearchLimit,
     from_date: isoDateString.optional(),
     to_date: isoDateString.optional()
-  }).refine((value) => value.chat_ref === undefined || value.folder_ref === undefined, optionalScopeRefinement),
+  })
+    .refine((value) => value.chat_ref === undefined || value.folder_ref === undefined, optionalScopeRefinement)
+    .refine(hasValidDateRange, dateRangeRefinement),
   telegram_search_media: z.object({
     media_type: mediaTypeSchema,
     query: z.string().trim().default(""),
@@ -106,7 +128,9 @@ export const toolSchemas = {
     limit: messageSearchLimit,
     from_date: isoDateString.optional(),
     to_date: isoDateString.optional()
-  }).refine((value) => value.chat_ref === undefined || value.folder_ref === undefined, optionalScopeRefinement),
+  })
+    .refine((value) => value.chat_ref === undefined || value.folder_ref === undefined, optionalScopeRefinement)
+    .refine(hasValidDateRange, dateRangeRefinement),
   telegram_get_messages: z.object({
     chat_ref: chatRef,
     limit: z.number().int().positive().max(100).default(50),

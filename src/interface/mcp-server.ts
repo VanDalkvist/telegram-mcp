@@ -86,15 +86,16 @@ function registerTool(
         };
       } catch (error) {
         const publicError = toPublicError(error);
+        const logError = sanitizePublicErrorForLog(publicError);
         await writeToolLog(logger, severityForPublicError(publicError), "tool_call_failed", {
           operation: name,
           correlation_id: correlationId,
           outcome: outcomeForPublicError(publicError),
           duration_ms: Date.now() - startedAt,
           error_type: errorTypeForPublicError(publicError),
-          error_code: publicError.code,
-          error_message: publicError.message,
-          error_details: publicError.details
+          error_code: logError.code,
+          error_message: logError.message,
+          error_details: logError.details
         });
         return {
           isError: true,
@@ -104,6 +105,21 @@ function registerTool(
       }
     }
   );
+}
+
+export function sanitizePublicErrorForLog(error: PublicError): PublicError {
+  const sanitized: PublicError = {
+    code: error.code,
+    message: error.message
+  };
+  const details = sanitizePublicErrorDetails(error.details);
+  if (details !== undefined) {
+    sanitized.details = details;
+  }
+  if (error.retry_after_seconds !== undefined) {
+    sanitized.retry_after_seconds = error.retry_after_seconds;
+  }
+  return sanitized;
 }
 
 export function summarizeToolArgsForLog(name: ToolName, args: unknown): Record<string, unknown> {
@@ -159,6 +175,25 @@ export function summarizeToolArgsForLog(name: ToolName, args: unknown): Record<s
   }
 
   return summary;
+}
+
+function sanitizePublicErrorDetails(details: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  if (details === undefined) {
+    return undefined;
+  }
+
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(details)) {
+    if (Array.isArray(value)) {
+      sanitized[`${key}_count`] = value.length;
+      continue;
+    }
+    if (typeof value === "number" || typeof value === "boolean") {
+      sanitized[key] = value;
+    }
+  }
+
+  return Object.keys(sanitized).length > 0 ? sanitized : undefined;
 }
 
 async function writeToolLog(
