@@ -2,6 +2,10 @@
 
 Статус: пройден с исправлениями.
 
+Audit tool:
+
+- [Codex Security by OpenAI](https://openai.com/index/codex-security-now-in-research-preview/)
+
 Repo audit report:
 
 - [docs/security/codex-security-audit-2026-05-11.md](codex-security-audit-2026-05-11.md)
