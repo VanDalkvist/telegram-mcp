@@ -6,6 +6,7 @@ import type { AppLogger } from "../../src/application/logger.js";
 import type { SessionStore } from "../../src/infra/file-session-store.js";
 import type { GramJsLikeClient } from "../../src/infra/telegram-client-adapter.js";
 import { createMcpServer, sanitizePublicErrorForLog, summarizeToolArgsForLog } from "../../src/interface/mcp-server.js";
+import { toolSchemas, type ToolName } from "../../src/interface/tool-schemas.js";
 
 describe("buildTelegramRuntime", () => {
   test("fails AUTH_REQUIRED before constructing Telegram client when session is missing", async () => {
@@ -66,29 +67,16 @@ describe("buildTelegramRuntime", () => {
 });
 
 describe("createMcpServer", () => {
-  test("registers all read-only Telegram tools", () => {
-    const server = createMcpServer({
-      listFolders: vi.fn(),
-      resolveFolder: vi.fn(),
-      listChats: vi.fn(),
-      searchChats: vi.fn(),
-      resolveChat: vi.fn(),
-      getChat: vi.fn(),
-      searchMessages: vi.fn(),
-      getRecentMessages: vi.fn(),
-      searchMessagesPage: vi.fn(),
-      searchMessagesBatch: vi.fn(),
-      searchMedia: vi.fn(),
-      getMessages: vi.fn(),
-      getMessage: vi.fn(),
-      getMessageContext: vi.fn(),
-      getThread: vi.fn(),
-      getDiscussion: vi.fn(),
-      getSearchCounters: vi.fn(),
-      getChatParticipants: vi.fn()
-    });
+  test("registers exactly the public tool schema surface", () => {
+    const registeredTools = registeredToolsFor(createMcpServer(makeQueries()));
+    const registeredNames = Object.keys(registeredTools).sort();
+    const schemaNames = Object.keys(toolSchemas).sort();
 
-    expect(server).toBeDefined();
+    expect(registeredNames).toEqual(schemaNames);
+    for (const name of schemaNames as ToolName[]) {
+      expect(registeredTools[name]!.inputSchema).toBe(toolSchemas[name]);
+      expect(registeredTools[name]!.handler).toEqual(expect.any(Function));
+    }
   });
 });
 
@@ -259,6 +247,29 @@ function makeClient(options: { authorized: boolean }): GramJsLikeClient & {
   };
 }
 
+function makeQueries() {
+  return {
+    listFolders: vi.fn(),
+    resolveFolder: vi.fn(),
+    listChats: vi.fn(),
+    searchChats: vi.fn(),
+    resolveChat: vi.fn(),
+    getChat: vi.fn(),
+    searchMessages: vi.fn(),
+    getRecentMessages: vi.fn(),
+    searchMessagesPage: vi.fn(),
+    searchMessagesBatch: vi.fn(),
+    searchMedia: vi.fn(),
+    getMessages: vi.fn(),
+    getMessage: vi.fn(),
+    getMessageContext: vi.fn(),
+    getThread: vi.fn(),
+    getDiscussion: vi.fn(),
+    getSearchCounters: vi.fn(),
+    getChatParticipants: vi.fn()
+  };
+}
+
 function makeLogger(overrides: Partial<AppLogger> = {}): AppLogger {
   return {
     info: vi.fn().mockResolvedValue(undefined),
@@ -270,6 +281,10 @@ function makeLogger(overrides: Partial<AppLogger> = {}): AppLogger {
 }
 
 async function callRegisteredTool(server: unknown, name: string, args: unknown): Promise<{ structuredContent?: unknown }> {
-  const registeredTools = (server as { _registeredTools: Record<string, { handler: (args: unknown) => Promise<unknown> }> })._registeredTools;
+  const registeredTools = registeredToolsFor(server);
   return (await registeredTools[name]!.handler(args)) as { structuredContent?: unknown };
+}
+
+function registeredToolsFor(server: unknown): Record<string, { inputSchema: unknown; handler: (args: unknown) => Promise<unknown> }> {
+  return (server as { _registeredTools: Record<string, { inputSchema: unknown; handler: (args: unknown) => Promise<unknown> }> })._registeredTools;
 }

@@ -1,81 +1,21 @@
 import { describe, expect, test, vi } from "vitest";
 import { AppError } from "../../src/domain/errors.js";
-import { createToolHandlers } from "../../src/interface/mcp-tools.js";
+import { createToolHandlers, type ToolHandlers } from "../../src/interface/mcp-tools.js";
 import type { TelegramQueries } from "../../src/application/telegram-queries.js";
 
 describe("createToolHandlers", () => {
-  test("validates input and delegates list chats to the query port", async () => {
-    const queries = makeQueries();
-    queries.listChats.mockResolvedValue({ chats: [] });
-    const handlers = createToolHandlers(queries as unknown as TelegramQueries);
+  test("delegates every tool handler to its query port with schema-normalized input", async () => {
+    for (const testCase of toolDelegationCases) {
+      const queries = makeQueries();
+      const expectedResult = { marker: testCase.tool };
+      queries[testCase.query].mockResolvedValue(expectedResult);
+      const handlers = createToolHandlers(queries as unknown as TelegramQueries);
 
-    await expect(handlers.telegram_list_chats({ limit: 5 })).resolves.toEqual({ chats: [] });
+      await expect(handlers[testCase.tool](testCase.input)).resolves.toBe(expectedResult);
 
-    expect(queries.listChats).toHaveBeenCalledWith({ limit: 5, type: "any" });
-  });
-
-  test("delegates folder tools through the query port", async () => {
-    const queries = makeQueries();
-    queries.listFolders.mockResolvedValue({ folders: [] });
-    queries.resolveFolder.mockResolvedValue({ folder: { folder_ref: "ref", id: 7, title: "Research Folder", kind: "dialog_filter" } });
-    const handlers = createToolHandlers(queries as unknown as TelegramQueries);
-
-    await expect(handlers.telegram_list_folders({})).resolves.toEqual({ folders: [] });
-    await expect(handlers.telegram_resolve_folder({ ref: "Research Folder" })).resolves.toMatchObject({
-      folder: { title: "Research Folder" }
-    });
-
-    expect(queries.listFolders).toHaveBeenCalledWith({});
-    expect(queries.resolveFolder).toHaveBeenCalledWith({ ref: "Research Folder" });
-  });
-
-  test("delegates P0/P1 tools through the query port", async () => {
-    const queries = makeQueries();
-    queries.listChats.mockResolvedValue({ chats: [] });
-    queries.getRecentMessages.mockResolvedValue({ messages: [], page: { order: "newer_to_older" } });
-    queries.searchMessagesPage.mockResolvedValue({ messages: [], page: { order: "newer_to_older" } });
-    queries.searchMessagesBatch.mockResolvedValue({ results: [], messages: [] });
-    queries.searchMedia.mockResolvedValue({ messages: [] });
-    queries.getThread.mockResolvedValue({ messages: [], page: { order: "older_to_newer" } });
-    queries.getDiscussion.mockResolvedValue({ messages: [] });
-    queries.getSearchCounters.mockResolvedValue({ counters: [] });
-    queries.getChatParticipants.mockResolvedValue({ participants: [] });
-    const handlers = createToolHandlers(queries as unknown as TelegramQueries);
-
-    await expect(handlers.telegram_list_folder_chats({ folder_ref: "folder-ref" })).resolves.toEqual({ chats: [] });
-    await expect(
-      handlers.telegram_get_recent_messages({
-        chat_ref: "chat-ref",
-        from_date: "2026-05-08",
-        to_date: "2026-05-15"
-      })
-    ).resolves.toMatchObject({ messages: [] });
-    await expect(handlers.telegram_search_messages_page({ query: "event" })).resolves.toMatchObject({ messages: [] });
-    await expect(handlers.telegram_search_messages_batch({ queries: ["event"] })).resolves.toMatchObject({ messages: [] });
-    await expect(handlers.telegram_search_media({ media_type: "links" })).resolves.toMatchObject({ messages: [] });
-    await expect(handlers.telegram_get_thread({ chat_ref: "chat-ref", message_id: 10 })).resolves.toMatchObject({ messages: [] });
-    await expect(handlers.telegram_get_discussion({ chat_ref: "chat-ref", message_id: 10 })).resolves.toMatchObject({ messages: [] });
-    await expect(handlers.telegram_get_search_counters({ chat_ref: "chat-ref" })).resolves.toMatchObject({ counters: [] });
-    await expect(handlers.telegram_get_chat_participants({ chat_ref: "chat-ref" })).resolves.toMatchObject({ participants: [] });
-
-    expect(queries.listChats).toHaveBeenCalledWith({ folder_ref: "folder-ref", limit: 50, type: "any" });
-    expect(queries.getRecentMessages).toHaveBeenCalledWith({
-      chat_ref: "chat-ref",
-      from_date: "2026-05-08",
-      to_date: "2026-05-15",
-      folder_chat_limit: 5,
-      limit: 20
-    });
-    expect(queries.searchMessagesPage).toHaveBeenCalledWith({
-      query: "event",
-      folder_chat_limit: 5,
-      limit: 20
-    });
-    expect(queries.getChatParticipants).toHaveBeenCalledWith({
-      chat_ref: "chat-ref",
-      filter: "recent",
-      limit: 50
-    });
+      expect(queries[testCase.query]).toHaveBeenCalledOnce();
+      expect(queries[testCase.query]).toHaveBeenCalledWith(testCase.expectedInput);
+    }
   });
 
   test("wraps invalid input as CONFIG_INVALID public contract error", async () => {
@@ -123,3 +63,133 @@ function makeQueries(): MockTelegramQueries {
 type MockTelegramQueries = {
   [K in keyof TelegramQueries]: ReturnType<typeof vi.fn>;
 };
+
+type ToolDelegationCase = {
+  tool: keyof ToolHandlers;
+  query: keyof MockTelegramQueries;
+  input: unknown;
+  expectedInput: unknown;
+};
+
+const toolDelegationCases: ToolDelegationCase[] = [
+  {
+    tool: "telegram_list_folders",
+    query: "listFolders",
+    input: {},
+    expectedInput: {}
+  },
+  {
+    tool: "telegram_resolve_folder",
+    query: "resolveFolder",
+    input: { ref: "Research Folder" },
+    expectedInput: { ref: "Research Folder" }
+  },
+  {
+    tool: "telegram_list_chats",
+    query: "listChats",
+    input: { limit: 5 },
+    expectedInput: { limit: 5, type: "any" }
+  },
+  {
+    tool: "telegram_list_folder_chats",
+    query: "listChats",
+    input: { folder_ref: "folder-ref" },
+    expectedInput: { folder_ref: "folder-ref", limit: 50, type: "any" }
+  },
+  {
+    tool: "telegram_search_chats",
+    query: "searchChats",
+    input: { query: "team" },
+    expectedInput: { query: "team", limit: 20, type: "any" }
+  },
+  {
+    tool: "telegram_resolve_chat",
+    query: "resolveChat",
+    input: { ref: "Team" },
+    expectedInput: { ref: "Team" }
+  },
+  {
+    tool: "telegram_get_chat",
+    query: "getChat",
+    input: { chat_ref: "chat-ref" },
+    expectedInput: { chat_ref: "chat-ref" }
+  },
+  {
+    tool: "telegram_search_messages",
+    query: "searchMessages",
+    input: { query: "event" },
+    expectedInput: { query: "event", folder_chat_limit: 5, limit: 20 }
+  },
+  {
+    tool: "telegram_get_recent_messages",
+    query: "getRecentMessages",
+    input: { chat_ref: "chat-ref", from_date: "2026-05-08", to_date: "2026-05-15" },
+    expectedInput: {
+      chat_ref: "chat-ref",
+      from_date: "2026-05-08",
+      to_date: "2026-05-15",
+      folder_chat_limit: 5,
+      limit: 20
+    }
+  },
+  {
+    tool: "telegram_search_messages_page",
+    query: "searchMessagesPage",
+    input: { query: "event" },
+    expectedInput: { query: "event", folder_chat_limit: 5, limit: 20 }
+  },
+  {
+    tool: "telegram_search_messages_batch",
+    query: "searchMessagesBatch",
+    input: { queries: ["event"] },
+    expectedInput: { queries: ["event"], folder_chat_limit: 5, limit: 20 }
+  },
+  {
+    tool: "telegram_search_media",
+    query: "searchMedia",
+    input: { media_type: "links" },
+    expectedInput: { media_type: "links", query: "", folder_chat_limit: 5, limit: 20 }
+  },
+  {
+    tool: "telegram_get_messages",
+    query: "getMessages",
+    input: { chat_ref: "chat-ref" },
+    expectedInput: { chat_ref: "chat-ref", limit: 50 }
+  },
+  {
+    tool: "telegram_get_message",
+    query: "getMessage",
+    input: { chat_ref: "chat-ref", message_id: 10 },
+    expectedInput: { chat_ref: "chat-ref", message_id: 10 }
+  },
+  {
+    tool: "telegram_get_message_context",
+    query: "getMessageContext",
+    input: { chat_ref: "chat-ref", message_id: 10 },
+    expectedInput: { chat_ref: "chat-ref", message_id: 10, before: 10, after: 10 }
+  },
+  {
+    tool: "telegram_get_thread",
+    query: "getThread",
+    input: { chat_ref: "chat-ref", message_id: 10 },
+    expectedInput: { chat_ref: "chat-ref", message_id: 10, limit: 50 }
+  },
+  {
+    tool: "telegram_get_discussion",
+    query: "getDiscussion",
+    input: { chat_ref: "chat-ref", message_id: 10 },
+    expectedInput: { chat_ref: "chat-ref", message_id: 10 }
+  },
+  {
+    tool: "telegram_get_search_counters",
+    query: "getSearchCounters",
+    input: { chat_ref: "chat-ref" },
+    expectedInput: { chat_ref: "chat-ref", media_types: ["links", "photos", "videos", "documents"] }
+  },
+  {
+    tool: "telegram_get_chat_participants",
+    query: "getChatParticipants",
+    input: { chat_ref: "chat-ref" },
+    expectedInput: { chat_ref: "chat-ref", filter: "recent", limit: 50 }
+  }
+];
