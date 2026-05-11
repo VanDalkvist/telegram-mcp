@@ -178,6 +178,14 @@ After connecting through Codex or Claude Code, ask the agent to call:
 
 These calls cover the basic retrieval flow without modifying Telegram state.
 
+For a local live smoke test against your configured Telegram account:
+
+```sh
+npm run smoke:live
+```
+
+The live smoke runner prints only scenario names, success flags, counts, and error codes. It does not print chat titles, usernames, `chat_ref` values, message ids, or message text.
+
 ## Development
 
 ```sh

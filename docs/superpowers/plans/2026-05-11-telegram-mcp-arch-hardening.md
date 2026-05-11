@@ -585,6 +585,30 @@ Run: `git diff --stat && git diff --check`
 
 Expected: no whitespace errors; diff limited to plan, docs, tests and architecture-hardening code.
 
+## Task 8: Redacted Live Smoke Against A Real Telegram Account
+
+**Files:**
+- Create: `tools/live-smoke.mjs`
+- Modify: `package.json`
+- Modify: `README.md`
+- Modify: `docs/superpowers/reviews/2026-05-11-telegram-mcp-arch-hardening-review.md`
+
+- [x] **Step 1: Add a live smoke runner without committing Telegram data**
+
+Create a local runner that exercises live read-only tool handlers through the built MCP composition and prints only scenario names, success flags, counts, booleans, page order, and public error codes. It must not print chat titles, usernames, `chat_ref` values, folder refs, message ids, message text, session strings, phone numbers, or API credentials.
+
+- [x] **Step 2: Add an npm entry point and README note**
+
+Expose the runner as `npm run smoke:live` and document its redacted-output contract. Do not add any fixtures captured from a real Telegram account.
+
+- [x] **Step 3: Run live examples**
+
+Run `npm run smoke:live` against the configured local Telegram account. Expected: the command passes while printing only redacted metrics for folder, chat, recent-message, context, text-search, and media-search scenarios.
+
+- [x] **Step 4: Run post-slice architecture review gate**
+
+Use the mandatory gate above and append a `Slice 7: Redacted live smoke` entry to `docs/superpowers/reviews/2026-05-11-telegram-mcp-arch-hardening-review.md`.
+
 ## Future Follow-Up
 
 After this pass, do not add new Telegram tool families without first checking `docs/project-arch-rules.md` and the focused query modules for the correct owner. If a new tool crosses folder/chat/message/thread boundaries, add a small orchestrator instead of growing a broad adapter again.

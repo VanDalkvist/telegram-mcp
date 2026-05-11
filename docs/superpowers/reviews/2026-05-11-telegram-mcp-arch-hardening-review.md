@@ -47,3 +47,11 @@
 - Business path review: pass. The project now has repo-owned guardrails for local-first, read-only Telegram access and for preventing future tool additions from recreating a giant adapter.
 - Residual risks: none for this docs slice.
 - Decision: proceed.
+
+## Slice 7: Redacted Live Smoke
+
+- Verification: `npm test` -> pass; 12 test files and 68 tests passed. `npm run typecheck` -> pass. `npm run smoke:live` -> pass against the configured local Telegram account. `npm pack --dry-run` -> pass and includes only package files plus `tools/live-smoke.mjs`.
+- AP review: AP-017/AP-024/AP-042 pass because the live smoke runner prints only scenario names, success flags, counts, booleans, page order, and public error codes; it does not print chat titles, usernames, `chat_ref` values, folder refs, message ids, message text, sessions, phone numbers, or API credentials. AP-032 pass because every scenario calls existing read-only query tools. PAR-001 pass because this slice does not add Telegram query implementation modules or generic `helpers`/`utils` files; the new script is a single tooling module with the business purpose of redacted live smoke verification.
+- Business path review: pass. The live examples cover `connect -> list folders/chats -> get chat -> recent messages -> context -> search messages/media`, which is the core agent retrieval path, without turning private Telegram content into fixtures or committed test data.
+- Residual risks: live smoke depends on the local Telegram account state and `.env`, so it is intentionally an operator smoke test rather than a deterministic CI test.
+- Decision: proceed.

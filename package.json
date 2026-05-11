@@ -17,6 +17,7 @@
   },
   "files": [
     "dist",
+    "tools",
     "README.md",
     "LICENSE"
   ],
@@ -31,6 +32,7 @@
     "clean": "rm -rf dist",
     "build": "npm run clean && tsc -p tsconfig.build.json",
     "prepack": "npm run build",
+    "smoke:live": "npm run build && node tools/live-smoke.mjs",
     "start": "tsx src/cli/index.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit"
