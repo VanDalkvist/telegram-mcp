@@ -71,3 +71,11 @@
 - Business path review: pass. A cold open-source reader can now understand what problem the server solves, what it refuses to do, how to configure/authenticate, how to connect Codex or Claude Code, and how to verify the install.
 - Residual risks: README remains English for public package discoverability even though project specs are Russian. If the target audience becomes primarily Russian-speaking, add a separate localized README rather than mixing languages in one public entrypoint.
 - Decision: proceed.
+
+## Slice 10: Russian README Localization
+
+- Verification: `git diff --check` -> pass. README/doc secret scan found only public placeholders and existing policy/test example strings, no live Telegram data. `npm test` -> pass; 12 test files and 68 tests passed. `npm run typecheck` -> pass. `npm pack --dry-run` -> pass and includes the Russian README.
+- AP review: AP-016/AP-017/AP-024/AP-032/AP-042 pass because the localized README preserves the local-first read-only safety boundary, explicit non-goals, private credential handling, fail-fast startup rule, and redacted live smoke behavior. PAR-001/AP-011 pass because this docs-only slice adds no query modules and keeps the no generic helpers rule visible in architecture notes.
+- Business path review: pass. A Russian-speaking cold reader can now understand the product value, configure `.env`, authenticate, build, connect Codex or Claude Code, and run smoke checks without relying on prior project context.
+- Residual risks: README deliberately keeps code-facing terms, tool ids, environment variables, CLI commands, and protocol names in English to avoid breaking copy/paste accuracy and API naming clarity.
+- Decision: proceed.

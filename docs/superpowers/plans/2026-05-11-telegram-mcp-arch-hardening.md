@@ -651,6 +651,24 @@ Keep setup, auth, Codex, Claude Code, live smoke, development, and architecture 
 
 Use the mandatory gate above and append a `Slice 9: Public README polish` entry to `docs/superpowers/reviews/2026-05-11-telegram-mcp-arch-hardening-review.md`.
 
+## Task 11: Russian README Localization
+
+**Files:**
+- Modify: `README.md`
+- Modify: `docs/superpowers/reviews/2026-05-11-telegram-mcp-arch-hardening-review.md`
+
+- [x] **Step 1: Rewrite README in Russian**
+
+Rewrite the public README in Russian to match the rest of the project documentation. Preserve English names for tool identifiers, environment variables, CLI commands, protocol names, and code-facing contracts.
+
+- [x] **Step 2: Reader-test setup flow**
+
+Cold-read the README as a new user and verify the path remains actionable: understand safety boundary, create `.env`, authenticate, build, connect Codex/Claude Code, and run smoke checks.
+
+- [x] **Step 3: Run post-slice architecture review gate**
+
+Use the mandatory gate above and append a `Slice 10: Russian README localization` entry to `docs/superpowers/reviews/2026-05-11-telegram-mcp-arch-hardening-review.md`.
+
 ## Future Follow-Up
 
 After this pass, do not add new Telegram tool families without first checking `docs/project-arch-rules.md` and the focused query modules for the correct owner. If a new tool crosses folder/chat/message/thread boundaries, add a small orchestrator instead of growing a broad adapter again.

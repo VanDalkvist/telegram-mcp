@@ -1,37 +1,43 @@
 # Telegram MCP
 
-Read-only MCP server that lets an agent search and read Telegram through your own MTProto user session.
+Read-only MCP-сервер, который даёт агенту поиск и чтение Telegram через ваш собственный MTProto user session.
 
-Telegram is often where the useful context lives: channels, groups, saved notes, event threads, private work chats, and old decisions. `telegram-mcp` turns that context into a local Model Context Protocol server without giving the agent any Telegram write capability.
+Telegram часто хранит контекст, который нужен агенту: каналы, группы, сохранённые заметки, треды событий, рабочие чаты и старые решения. `telegram-mcp` превращает этот контекст в локальный Model Context Protocol server, но не даёт агенту прав на запись в Telegram.
 
-## What This Gives An Agent
+## Зачем Это Нужно
 
-- List Telegram folders and chats visible to your account.
-- Resolve folders and chats into stable references.
-- Search messages globally, inside a chat, or inside a Telegram folder.
-- Read recent messages, single messages, surrounding context, threads, discussions, media results, search counters, and participants when Telegram grants access.
-- Keep all Telegram credentials and session material on your machine.
+Этот репозиторий закрывает такую пользовательскую работу:
 
-## Safety Boundary
+> Я хочу, чтобы агент мог находить и читать нужный контекст в моём Telegram, но не мог ничего отправить, удалить, переслать или случайно изменить.
 
-This project is intentionally local-first and read-only.
+Практический эффект:
 
-It runs over MCP `stdio`, reads configuration from your local environment, stores the Telegram session locally, and exposes only query tools.
+- агент видит Telegram folders и chats, доступные вашему аккаунту;
+- чаты и папки превращаются в стабильные refs, которые можно передавать между tools;
+- поиск работает глобально, внутри чата или внутри Telegram folder;
+- найденное сообщение можно расширить контекстом вокруг него, тредом или обсуждением;
+- Telegram credentials и session остаются на вашей машине.
 
-It does not:
+## Граница Безопасности
 
-- send, forward, edit, delete, pin, or mark messages as read;
-- join or leave chats;
-- use Bot API tokens;
-- run watchers, webhooks, realtime subscriptions, or background daemons;
-- download media files;
-- provide hosted multi-user auth.
+Проект намеренно local-first и read-only.
 
-If the server cannot load config or an authorized Telegram session, it fails before exposing MCP tools.
+Сервер работает через MCP `stdio`, читает конфигурацию из локального окружения, хранит Telegram session локально и предоставляет только query tools.
 
-## Tool Surface
+Он не умеет:
 
-| Area | Tools |
+- отправлять, пересылать, редактировать, удалять, закреплять сообщения или помечать их прочитанными;
+- вступать в чаты или выходить из них;
+- работать через Bot API tokens;
+- запускать watchers, webhooks, realtime subscriptions или фоновые daemons;
+- скачивать media files;
+- делать hosted multi-user auth.
+
+Если сервер не может загрузить config или авторизованную Telegram session, он падает до того, как MCP tools станут доступны.
+
+## Tools
+
+| Область | Tools |
 | --- | --- |
 | Folders | `telegram_list_folders`, `telegram_resolve_folder`, `telegram_list_folder_chats` |
 | Chats | `telegram_list_chats`, `telegram_search_chats`, `telegram_resolve_chat`, `telegram_get_chat`, `telegram_get_chat_participants` |
@@ -39,68 +45,68 @@ If the server cannot load config or an authorized Telegram session, it fails bef
 | Threads and discussions | `telegram_get_thread`, `telegram_get_discussion` |
 | Media and counters | `telegram_search_media`, `telegram_get_search_counters` |
 
-All tools are read-only. Tool inputs are validated before Telegram is called.
+Все tools read-only. Inputs валидируются до вызова Telegram.
 
-## Requirements
+## Требования
 
-- Node.js 22 or newer.
-- A Telegram API application from [my.telegram.org](https://my.telegram.org).
-- A Telegram user account. Bot tokens are not supported because this server uses MTProto user sessions.
+- Node.js 22 или новее.
+- Telegram API application из [my.telegram.org](https://my.telegram.org).
+- Telegram user account. Bot tokens не поддерживаются, потому что сервер использует MTProto user session.
 
-## Quick Start
+## Быстрый Старт
 
-Install dependencies:
+Установите зависимости:
 
 ```sh
 npm install
 ```
 
-Create local configuration:
+Создайте локальную конфигурацию:
 
 ```sh
 cp .env.example .env
 ```
 
-Set your Telegram API credentials:
+Укажите Telegram API credentials:
 
 ```sh
 TELEGRAM_API_ID=123456
 TELEGRAM_API_HASH=your-api-hash
 ```
 
-Optional paths:
+Опциональные пути:
 
 ```sh
 TELEGRAM_SESSION_PATH=~/.config/telegram-mcp/session
 TELEGRAM_LOG_PATH=~/.local/state/telegram-mcp/server.jsonl
 ```
 
-Authenticate once:
+Один раз пройдите авторизацию:
 
 ```sh
 npm run auth
 ```
 
-The auth command asks for your phone number, Telegram login code, and 2FA password if your account requires one. It stores a local GramJS session string at `TELEGRAM_SESSION_PATH`.
+Команда auth спросит phone number, Telegram login code и 2FA password, если он включён. После этого она сохранит локальную GramJS session string в `TELEGRAM_SESSION_PATH`.
 
-Build and run the MCP server:
+Соберите и запустите MCP server:
 
 ```sh
 npm run build
 node dist/cli/index.js
 ```
 
-For local development you can also run:
+Для локальной разработки можно запускать:
 
 ```sh
 npm start
 ```
 
-## Use With Codex
+## Подключение К Codex
 
-Codex reads MCP servers from `~/.codex/config.toml`.
+Codex читает MCP servers из `~/.codex/config.toml`.
 
-If you keep `.env` in the cloned repository, set `cwd` to the repository so the server can load it:
+Если `.env` лежит в клоне репозитория, задайте `cwd` на этот репозиторий, чтобы сервер мог загрузить конфигурацию:
 
 ```toml
 [mcp_servers.telegram-mcp]
@@ -112,14 +118,14 @@ startup_timeout_sec = 30
 tool_timeout_sec = 60
 ```
 
-Then restart Codex or reload MCP servers and verify:
+После этого перезапустите Codex или перезагрузите MCP servers и проверьте:
 
 ```sh
 codex mcp list
 codex mcp get telegram-mcp
 ```
 
-If you prefer not to load `.env`, pass config directly:
+Если не хотите, чтобы сервер читал `.env`, передайте config напрямую:
 
 ```toml
 [mcp_servers.telegram-mcp]
@@ -134,9 +140,9 @@ TELEGRAM_SESSION_PATH = "/absolute/path/to/private/session"
 TELEGRAM_LOG_PATH = "/absolute/path/to/private/server.jsonl"
 ```
 
-## Use With Claude Code
+## Подключение К Claude Code
 
-For a private local setup, add the server with `claude mcp add`. Options must come before the server name:
+Для приватной локальной настройки добавьте сервер через `claude mcp add`. Options должны идти до имени сервера:
 
 ```sh
 claude mcp add --transport stdio \
@@ -147,16 +153,16 @@ claude mcp add --transport stdio \
   telegram-mcp -- node /absolute/path/to/telegram-mcp/dist/cli/index.js
 ```
 
-Verify it:
+Проверьте подключение:
 
 ```sh
 claude mcp list
 claude mcp get telegram-mcp
 ```
 
-Inside Claude Code, use `/mcp` to inspect connection status.
+Внутри Claude Code можно использовать `/mcp`, чтобы посмотреть статус соединения.
 
-For a team/project setup, Claude Code can read a project `.mcp.json`. Commit only a template that uses environment variable expansion, not real secrets:
+Для team/project setup Claude Code может читать project `.mcp.json`. Коммитить можно только template с environment variable expansion, без реальных secrets:
 
 ```json
 {
@@ -176,30 +182,30 @@ For a team/project setup, Claude Code can read a project `.mcp.json`. Commit onl
 }
 ```
 
-Each user must set those environment variables locally before starting Claude Code.
+Каждый пользователь должен локально задать эти environment variables перед запуском Claude Code.
 
-## Verify It Works
+## Проверка
 
-After connecting through Codex or Claude Code, ask the agent to call:
+После подключения через Codex или Claude Code попросите агента вызвать:
 
 1. `telegram_list_chats`
 2. `telegram_search_chats`
 3. `telegram_search_messages`
 4. `telegram_get_message_context`
 
-These calls cover the basic retrieval flow without modifying Telegram state.
+Эти calls проверяют базовый retrieval flow и не меняют состояние Telegram.
 
-For a full local live smoke test against your configured Telegram account:
+Для полной live smoke-проверки на настроенном Telegram account:
 
 ```sh
 npm run smoke:live
 ```
 
-The live smoke runner attempts every MCP tool handler and prints only redacted metrics: scenario names, success flags, counts, booleans, page order, and error codes. It does not print chat titles, usernames, `chat_ref` values, message ids, message text, session strings, phone numbers, or API credentials.
+Live smoke runner пытается пройти каждый MCP tool handler и печатает только redacted metrics: scenario names, success flags, counts, booleans, page order и error codes. Он не печатает chat titles, usernames, `chat_ref`, message ids, message text, session strings, phone numbers или API credentials.
 
-Account-dependent scenarios such as threads, discussions, and participants may fail when Telegram does not support the sampled object. The runner reports those as optional failures instead of turning private Telegram data into fixtures.
+Account-dependent сценарии вроде threads, discussions и participants могут падать, если Telegram не поддерживает выбранный объект. Runner сообщает об этом как об optional failure и не превращает приватные Telegram data в fixtures.
 
-## Development
+## Разработка
 
 ```sh
 npm test
@@ -208,18 +214,18 @@ npm run build
 npm pack --dry-run
 ```
 
-GitHub Actions runs deterministic CI checks on push and pull request: install, typecheck, tests, build, and package dry run. Live Telegram smoke is intentionally local-only because it needs a private Telegram session.
+GitHub Actions запускает deterministic CI checks на push и pull request: install, typecheck, tests, build и package dry run. Live Telegram smoke намеренно остаётся local-only, потому что требует приватную Telegram session.
 
-## Architecture Notes
+## Архитектура
 
-The project follows a small ports-and-adapters shape:
+Проект использует небольшой ports-and-adapters shape:
 
-- MCP tools validate inputs and expose stable DTOs.
-- Telegram adapter modules own GramJS calls and normalize Telegram responses.
-- Config and session loading fail fast before tools are exposed.
-- Query modules are split by business operation. Generic `helpers`, `utils`, `common`, and `misc` dumping grounds are forbidden.
+- MCP tools валидируют inputs и возвращают стабильные DTO.
+- Telegram adapter modules владеют GramJS calls и нормализацией Telegram responses.
+- Config и session loading fail-fast выполняются до публикации tools.
+- Query modules разделены по business operation. Generic `helpers`, `utils`, `common` и `misc` dumping grounds запрещены.
 
-Project design and architecture rules live in:
+Основные проектные документы:
 
 - [docs/design.md](docs/design.md)
 - [docs/project-arch-rules.md](docs/project-arch-rules.md)
