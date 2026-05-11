@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { chmod, mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { AppError } from "../domain/errors.js";
 
@@ -30,6 +30,7 @@ export class FileSessionStore implements SessionStore {
     const validSession = assertNonEmptySession(session);
     await mkdir(dirname(this.sessionPath), { recursive: true });
     await writeFile(this.sessionPath, validSession, { encoding: "utf8", mode: 0o600 });
+    await chmod(this.sessionPath, 0o600);
   }
 }
 

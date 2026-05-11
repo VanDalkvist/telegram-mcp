@@ -211,6 +211,69 @@ describe("TelegramClientAdapter", () => {
     });
   });
 
+  test("honors excluded peers for explicit folder includes and pins", async () => {
+    const folderRef = folderRefFor({ id: 7, title: "Research Folder" });
+    const includedPeer = new Api.InputPeerChannel({ channelId: bigInt("1"), accessHash: bigInt("100") });
+    const pinnedPeer = new Api.InputPeerChannel({ channelId: bigInt("2"), accessHash: bigInt("200") });
+    const visiblePeer = new Api.InputPeerChannel({ channelId: bigInt("3"), accessHash: bigInt("300") });
+    const client = makeClient({
+      dialogFilters: [
+        {
+          id: 7,
+          title: "Research Folder",
+          pinnedPeers: [pinnedPeer],
+          includePeers: [includedPeer, visiblePeer],
+          excludePeers: [includedPeer, pinnedPeer]
+        }
+      ]
+    });
+    client.getEntity.mockImplementation((peer: unknown) => {
+      const channelId = (peer as { channelId?: { toString(): string } }).channelId?.toString();
+      if (channelId === "1") {
+        return Promise.resolve({ id: "1", accessHash: "100", title: "Excluded Include" });
+      }
+      if (channelId === "2") {
+        return Promise.resolve({ id: "2", accessHash: "200", title: "Excluded Pin" });
+      }
+      return Promise.resolve({ id: "3", accessHash: "300", title: "Visible Include" });
+    });
+    const adapter = new TelegramClientAdapter(client as unknown as GramJsLikeClient);
+
+    await expect(adapter.listChats({ limit: 10, type: "any", folder_ref: folderRef })).resolves.toMatchObject({
+      chats: [{ title: "Visible Include" }]
+    });
+  });
+
+  test("honors rule-based folder exclusion flags when dialog metadata exposes them", async () => {
+    const folderRef = folderRefFor({ id: 7, title: "Research Folder" });
+    const client = makeClient({
+      dialogFilters: [
+        {
+          id: 7,
+          title: "Research Folder",
+          pinnedPeers: [],
+          includePeers: [],
+          excludePeers: [],
+          groups: true,
+          excludeMuted: true,
+          excludeRead: true,
+          excludeArchived: true
+        }
+      ],
+      dialogs: [
+        { title: "Muted Group", isGroup: true, entity: { id: "1", title: "Muted Group", megagroup: true }, isMuted: true, unreadCount: 3 },
+        { title: "Read Group", isGroup: true, entity: { id: "2", title: "Read Group", megagroup: true }, unreadCount: 0 },
+        { title: "Archived Group", isGroup: true, entity: { id: "3", title: "Archived Group", megagroup: true }, folderId: 1, unreadCount: 4 },
+        { title: "Visible Group", isGroup: true, entity: { id: "4", title: "Visible Group", megagroup: true }, unreadCount: 2 }
+      ]
+    });
+    const adapter = new TelegramClientAdapter(client as unknown as GramJsLikeClient);
+
+    await expect(adapter.listChats({ limit: 10, type: "any", folder_ref: folderRef })).resolves.toMatchObject({
+      chats: [{ title: "Visible Group" }]
+    });
+  });
+
   test("fails ambiguous title resolution instead of choosing first match", async () => {
     const client = makeClient({
       dialogs: [

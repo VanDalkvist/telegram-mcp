@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
@@ -21,6 +21,17 @@ describe("FileSessionStore", () => {
 
     await store.save("session-string");
 
+    await expect(store.load()).resolves.toBe("session-string");
+  });
+
+  test("tightens existing session file permissions when saving", async () => {
+    const sessionPath = join(dir, "session");
+    await writeFile(sessionPath, "old-session", { mode: 0o644 });
+    const store = new FileSessionStore(sessionPath);
+
+    await store.save("session-string");
+
+    expect((await stat(sessionPath)).mode & 0o777).toBe(0o600);
     await expect(store.load()).resolves.toBe("session-string");
   });
 

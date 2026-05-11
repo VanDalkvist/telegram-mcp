@@ -111,3 +111,11 @@
 - Business path review: pass. A maintainer or agent can now find the project rule by searching either `PAR-1` or `PAR-001`, instead of having to infer it from a single line in the critical rules list.
 - Residual risks: none for this docs-only slice.
 - Decision: proceed.
+
+## Slice 15: Security Audit Findings Remediation
+
+- Verification: targeted red tests reproduced both Codex Security findings before implementation. After fixes, `npm test -- tests/adapter/telegram-client-adapter.test.ts` passed 26 tests, `npm test -- tests/unit/file-session-store.test.ts` passed 4 tests, full `npm test` passed 12 files and 69 tests, `npm run typecheck` passed, `npm run build` passed, `npm pack --dry-run` passed, and `git diff --check` passed.
+- AP review: AP-016/AP-032/AP-042/AP-043/PAR-001 pass. The folder-membership fix stays in focused Telegram folder modules, adds no write operations, and preserves the local-first read-only boundary. The session fix tightens local secret file permissions without changing the auth model. README and `docs/security/codex-security-audit-2026-05-11.md` record the audit result without claiming a security guarantee.
+- Business path review: pass. Folder-scoped retrieval now respects Telegram folder exclusions more closely, and existing session files are hardened on save. Public README readers see both the audited-with-fixes status and the warranty/liability boundary before configuration instructions.
+- Residual risks: exclusion flags depend on dialog metadata exposed by GramJS. Explicit peers are filtered by `excludePeers`; muted/read/archived flags for explicit peers are not evaluated unless Telegram exposes equivalent dialog metadata on the rule-derived path. README disclaimer is an open-source project notice, not legal advice; the MIT `LICENSE` remains the authoritative license text.
+- Decision: cycle complete.
