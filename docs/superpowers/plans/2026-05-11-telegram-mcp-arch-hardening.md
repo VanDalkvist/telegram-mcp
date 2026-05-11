@@ -705,6 +705,24 @@ Keep architecture rules visible, but only as guardrails around the component map
 
 Use the mandatory gate above and append a `Slice 12: README application architecture description` entry to `docs/superpowers/reviews/2026-05-11-telegram-mcp-arch-hardening-review.md`.
 
+## Task 14: README Architecture Term Consistency
+
+**Files:**
+- Modify: `README.md`
+- Modify: `docs/superpowers/reviews/2026-05-11-telegram-mcp-arch-hardening-review.md`
+
+- [x] **Step 1: Restore accepted architecture terms**
+
+Use established terms from the project architecture rules and software architecture vocabulary, such as `Composition root`, `Interface layer`, `Application layer`, `Infrastructure layer`, `Domain layer`, `trusted boundary`, `read-only`, `session readiness`, and `typed errors`.
+
+- [x] **Step 2: Avoid mixed-language sentence fragments**
+
+Keep English terms as explicit technical terms, not as half-translated sentence fragments.
+
+- [x] **Step 3: Run post-slice architecture review gate**
+
+Use the mandatory gate above and append a `Slice 13: README architecture term consistency` entry to `docs/superpowers/reviews/2026-05-11-telegram-mcp-arch-hardening-review.md`.
+
 ## Future Follow-Up
 
 After this pass, do not add new Telegram tool families without first checking `docs/project-arch-rules.md` and the focused query modules for the correct owner. If a new tool crosses folder/chat/message/thread boundaries, add a small orchestrator instead of growing a broad adapter again.

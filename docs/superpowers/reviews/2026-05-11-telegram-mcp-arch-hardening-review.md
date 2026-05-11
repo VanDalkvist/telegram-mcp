@@ -95,3 +95,11 @@
 - Business path review: pass. A reader can now understand what components exist, how a tool call moves through the server, and where the safety checks sit in the path.
 - Residual risks: none for this docs-only slice.
 - Decision: proceed.
+
+## Slice 13: README Architecture Term Consistency
+
+- Verification: `git diff --check` -> pass. `npm test` -> pass; 12 test files and 68 tests passed. `npm run typecheck` -> pass. `npm pack --dry-run` -> pass and includes the updated README.
+- AP review: AP-016/AP-020/AP-021/AP-022/AP-025/AP-026/AP-027/AP-032/AP-042 pass. README now uses accepted architecture terms as explicit terms (`Composition root`, `Interface layer`, `Application layer`, `Infrastructure layer`, `Domain layer`, `trusted boundary`, `read-only`, `session readiness`, `typed errors`) while keeping the surrounding prose Russian and readable.
+- Business path review: pass. The architecture section remains a component and request-flow description, but now uses the same vocabulary as the project architecture rules instead of avoiding useful technical terms.
+- Residual risks: none for this docs-only slice.
+- Decision: proceed.
