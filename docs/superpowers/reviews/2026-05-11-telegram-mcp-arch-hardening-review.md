@@ -63,3 +63,11 @@
 - Business path review: pass. GitHub now blocks regressions in deterministic build/test/package checks, while local `npm run smoke:live` verifies every MCP tool against the configured account without committing live Telegram data.
 - Residual risks: GitHub CI intentionally does not run live Telegram smoke because that would require private Telegram session material in CI. CI action versions were selected from current official GitHub/action release documentation; the local repo does not contain the `scripts/ci_monitor.cjs` helper referenced by the generic workflow skill, so workflow-run monitoring starts after this workflow is pushed.
 - Decision: proceed.
+
+## Slice 9: Public README Polish
+
+- Verification: `git diff --check` -> pass. README secret scan found only public placeholders and existing policy/test example strings, no live Telegram data. `npm test` -> pass; 12 test files and 68 tests passed. `npm run typecheck` -> pass. `npm pack --dry-run` -> pass and includes the polished README.
+- AP review: AP-016/AP-017/AP-024/AP-032/AP-042 pass because README now foregrounds the local-first read-only safety boundary, explicit non-goals, private credential handling, and redacted live smoke behavior. PAR-001/AP-011 pass because this docs-only slice adds no query modules and reinforces the no generic helpers rule in architecture notes.
+- Business path review: pass. A cold open-source reader can now understand what problem the server solves, what it refuses to do, how to configure/authenticate, how to connect Codex or Claude Code, and how to verify the install.
+- Residual risks: README remains English for public package discoverability even though project specs are Russian. If the target audience becomes primarily Russian-speaking, add a separate localized README rather than mixing languages in one public entrypoint.
+- Decision: proceed.

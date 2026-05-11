@@ -633,6 +633,24 @@ Run local deterministic checks and `npm run smoke:live`. Expected: deterministic
 
 Use the mandatory gate above and append a `Slice 8: CI build checks and full tool smoke coverage` entry to `docs/superpowers/reviews/2026-05-11-telegram-mcp-arch-hardening-review.md`.
 
+## Task 10: Public README Polish
+
+**Files:**
+- Modify: `README.md`
+- Modify: `docs/superpowers/reviews/2026-05-11-telegram-mcp-arch-hardening-review.md`
+
+- [x] **Step 1: Reframe README for a cold open-source reader**
+
+Use the same clarity pattern as the `ai-meatbags/arch-rules` README: explain why the project exists, what problem it solves, what is inside, how to use it, and what is explicitly out of scope. Keep the language appropriate for this repository: public-facing English, local-first Telegram safety boundary, and concrete setup commands.
+
+- [x] **Step 2: Preserve required operational detail**
+
+Keep setup, auth, Codex, Claude Code, live smoke, development, and architecture notes discoverable. Do not add private Telegram examples or project-local secrets.
+
+- [x] **Step 3: Run post-slice architecture review gate**
+
+Use the mandatory gate above and append a `Slice 9: Public README polish` entry to `docs/superpowers/reviews/2026-05-11-telegram-mcp-arch-hardening-review.md`.
+
 ## Future Follow-Up
 
 After this pass, do not add new Telegram tool families without first checking `docs/project-arch-rules.md` and the focused query modules for the correct owner. If a new tool crosses folder/chat/message/thread boundaries, add a small orchestrator instead of growing a broad adapter again.

@@ -1,95 +1,106 @@
 # Telegram MCP
 
-Read-only Model Context Protocol server for searching and reading Telegram chats through a user MTProto session.
+Read-only MCP server that lets an agent search and read Telegram through your own MTProto user session.
 
-This project is local-first: it runs over MCP `stdio`, stores the Telegram session on the local machine, and exposes only read operations. It does not send, forward, delete, join, leave, pin, or mark Telegram messages as read.
+Telegram is often where the useful context lives: channels, groups, saved notes, event threads, private work chats, and old decisions. `telegram-mcp` turns that context into a local Model Context Protocol server without giving the agent any Telegram write capability.
 
-## Tools
+## What This Gives An Agent
 
-- `telegram_list_folders`
-- `telegram_resolve_folder`
-- `telegram_list_chats`
-- `telegram_list_folder_chats`
-- `telegram_search_chats`
-- `telegram_resolve_chat`
-- `telegram_get_chat`
-- `telegram_search_messages`
-- `telegram_get_recent_messages`
-- `telegram_search_messages_page`
-- `telegram_search_messages_batch`
-- `telegram_search_media`
-- `telegram_get_messages`
-- `telegram_get_message`
-- `telegram_get_message_context`
-- `telegram_get_thread`
-- `telegram_get_discussion`
-- `telegram_get_search_counters`
-- `telegram_get_chat_participants`
+- List Telegram folders and chats visible to your account.
+- Resolve folders and chats into stable references.
+- Search messages globally, inside a chat, or inside a Telegram folder.
+- Read recent messages, single messages, surrounding context, threads, discussions, media results, search counters, and participants when Telegram grants access.
+- Keep all Telegram credentials and session material on your machine.
 
-## Setup
+## Safety Boundary
 
-Requirements:
+This project is intentionally local-first and read-only.
+
+It runs over MCP `stdio`, reads configuration from your local environment, stores the Telegram session locally, and exposes only query tools.
+
+It does not:
+
+- send, forward, edit, delete, pin, or mark messages as read;
+- join or leave chats;
+- use Bot API tokens;
+- run watchers, webhooks, realtime subscriptions, or background daemons;
+- download media files;
+- provide hosted multi-user auth.
+
+If the server cannot load config or an authorized Telegram session, it fails before exposing MCP tools.
+
+## Tool Surface
+
+| Area | Tools |
+| --- | --- |
+| Folders | `telegram_list_folders`, `telegram_resolve_folder`, `telegram_list_folder_chats` |
+| Chats | `telegram_list_chats`, `telegram_search_chats`, `telegram_resolve_chat`, `telegram_get_chat`, `telegram_get_chat_participants` |
+| Messages | `telegram_search_messages`, `telegram_get_recent_messages`, `telegram_search_messages_page`, `telegram_search_messages_batch`, `telegram_get_messages`, `telegram_get_message`, `telegram_get_message_context` |
+| Threads and discussions | `telegram_get_thread`, `telegram_get_discussion` |
+| Media and counters | `telegram_search_media`, `telegram_get_search_counters` |
+
+All tools are read-only. Tool inputs are validated before Telegram is called.
+
+## Requirements
 
 - Node.js 22 or newer.
-- A Telegram API application from <https://my.telegram.org>.
+- A Telegram API application from [my.telegram.org](https://my.telegram.org).
 - A Telegram user account. Bot tokens are not supported because this server uses MTProto user sessions.
 
-Create a Telegram API application at `my.telegram.org`, then configure local environment variables:
+## Quick Start
+
+Install dependencies:
+
+```sh
+npm install
+```
+
+Create local configuration:
 
 ```sh
 cp .env.example .env
 ```
 
-Set:
+Set your Telegram API credentials:
 
 ```sh
 TELEGRAM_API_ID=123456
 TELEGRAM_API_HASH=your-api-hash
 ```
 
-Optional:
+Optional paths:
 
 ```sh
 TELEGRAM_SESSION_PATH=~/.config/telegram-mcp/session
 TELEGRAM_LOG_PATH=~/.local/state/telegram-mcp/server.jsonl
 ```
 
-Install dependencies and authenticate:
+Authenticate once:
 
 ```sh
-npm install
 npm run auth
 ```
 
-`npm run auth` opens an interactive login flow. It asks for your phone number, Telegram login code, and 2FA password if your account requires one. The resulting session is stored locally at `TELEGRAM_SESSION_PATH`.
+The auth command asks for your phone number, Telegram login code, and 2FA password if your account requires one. It stores a local GramJS session string at `TELEGRAM_SESSION_PATH`.
 
-Run the MCP server:
-
-```sh
-npm start
-```
-
-For production-style use, build first:
+Build and run the MCP server:
 
 ```sh
 npm run build
 node dist/cli/index.js
 ```
 
-## Use With Agents
-
-Build the server before wiring it into an agent:
+For local development you can also run:
 
 ```sh
-npm install
-npm run build
+npm start
 ```
 
-Keep `TELEGRAM_API_ID`, `TELEGRAM_API_HASH`, and the session file private. Do not commit `.env`, `.mcp.json` with real secrets, or a Telegram session file.
+## Use With Codex
 
-### Codex
+Codex reads MCP servers from `~/.codex/config.toml`.
 
-Codex reads MCP servers from `~/.codex/config.toml`. If you keep `.env` in the cloned repository, set `cwd` to that repository so the server can load it:
+If you keep `.env` in the cloned repository, set `cwd` to the repository so the server can load it:
 
 ```toml
 [mcp_servers.telegram-mcp]
@@ -108,7 +119,7 @@ codex mcp list
 codex mcp get telegram-mcp
 ```
 
-If you do not want the server to read `.env`, pass configuration directly in the Codex config instead:
+If you prefer not to load `.env`, pass config directly:
 
 ```toml
 [mcp_servers.telegram-mcp]
@@ -123,7 +134,7 @@ TELEGRAM_SESSION_PATH = "/absolute/path/to/private/session"
 TELEGRAM_LOG_PATH = "/absolute/path/to/private/server.jsonl"
 ```
 
-### Claude Code
+## Use With Claude Code
 
 For a private local setup, add the server with `claude mcp add`. Options must come before the server name:
 
@@ -167,7 +178,7 @@ For a team/project setup, Claude Code can read a project `.mcp.json`. Commit onl
 
 Each user must set those environment variables locally before starting Claude Code.
 
-## Smoke Test
+## Verify It Works
 
 After connecting through Codex or Claude Code, ask the agent to call:
 
@@ -178,13 +189,15 @@ After connecting through Codex or Claude Code, ask the agent to call:
 
 These calls cover the basic retrieval flow without modifying Telegram state.
 
-For a local live smoke test against your configured Telegram account:
+For a full local live smoke test against your configured Telegram account:
 
 ```sh
 npm run smoke:live
 ```
 
-The live smoke runner prints only scenario names, success flags, counts, and error codes. It does not print chat titles, usernames, `chat_ref` values, message ids, or message text. It attempts every MCP tool handler; account-dependent scenarios such as threads, discussions, and participants are reported as optional failures when Telegram does not support that object.
+The live smoke runner attempts every MCP tool handler and prints only redacted metrics: scenario names, success flags, counts, booleans, page order, and error codes. It does not print chat titles, usernames, `chat_ref` values, message ids, message text, session strings, phone numbers, or API credentials.
+
+Account-dependent scenarios such as threads, discussions, and participants may fail when Telegram does not support the sampled object. The runner reports those as optional failures instead of turning private Telegram data into fixtures.
 
 ## Development
 
@@ -192,8 +205,21 @@ The live smoke runner prints only scenario names, success flags, counts, and err
 npm test
 npm run typecheck
 npm run build
+npm pack --dry-run
 ```
 
 GitHub Actions runs deterministic CI checks on push and pull request: install, typecheck, tests, build, and package dry run. Live Telegram smoke is intentionally local-only because it needs a private Telegram session.
 
-The public architecture notes live in [docs/design.md](docs/design.md).
+## Architecture Notes
+
+The project follows a small ports-and-adapters shape:
+
+- MCP tools validate inputs and expose stable DTOs.
+- Telegram adapter modules own GramJS calls and normalize Telegram responses.
+- Config and session loading fail fast before tools are exposed.
+- Query modules are split by business operation. Generic `helpers`, `utils`, `common`, and `misc` dumping grounds are forbidden.
+
+Project design and architecture rules live in:
+
+- [docs/design.md](docs/design.md)
+- [docs/project-arch-rules.md](docs/project-arch-rules.md)
