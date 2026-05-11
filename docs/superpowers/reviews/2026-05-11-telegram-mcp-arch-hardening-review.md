@@ -87,3 +87,11 @@
 - Business path review: pass. The section now reads as Russian documentation for this project rather than a literal translation of implementation jargon, and it points readers to `docs/design.md` and `docs/project-arch-rules.md` for the full policy.
 - Residual risks: none for this docs-only slice.
 - Decision: proceed.
+
+## Slice 12: README Application Architecture Description
+
+- Verification: `git diff --check` -> pass. README/doc secret scan found only public placeholders and existing policy/test example strings, no live Telegram data. `npm test` -> pass; 12 test files and 68 tests passed. `npm run typecheck` -> pass. `npm pack --dry-run` -> pass and includes the updated README.
+- AP review: AP-016/AP-020/AP-021/AP-022/AP-025/AP-026/AP-027/AP-032/AP-042 pass because the README now describes the real application structure: CLI entry, composition root, MCP interface, application query contract, infrastructure implementations, domain contracts, and the request flow from agent to Telegram and back. Project rules are described as boundaries around that architecture rather than as the whole architecture.
+- Business path review: pass. A reader can now understand what components exist, how a tool call moves through the server, and where the safety checks sit in the path.
+- Residual risks: none for this docs-only slice.
+- Decision: proceed.

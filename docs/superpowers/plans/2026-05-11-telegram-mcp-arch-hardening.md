@@ -687,6 +687,24 @@ The README architecture section must describe the repo's real architecture polic
 
 Use the mandatory gate above and append a `Slice 11: README architecture wording repair` entry to `docs/superpowers/reviews/2026-05-11-telegram-mcp-arch-hardening-review.md`.
 
+## Task 13: README Application Architecture Description
+
+**Files:**
+- Modify: `README.md`
+- Modify: `docs/superpowers/reviews/2026-05-11-telegram-mcp-arch-hardening-review.md`
+
+- [x] **Step 1: Replace rules-only architecture text**
+
+Rewrite the README architecture section so it describes the actual application architecture: process entrypoint, composition root, MCP interface, application query contract, infrastructure implementations, domain contracts, and request flow.
+
+- [x] **Step 2: Keep project rules as boundaries, not the whole architecture**
+
+Keep architecture rules visible, but only as guardrails around the component map and request flow.
+
+- [x] **Step 3: Run post-slice architecture review gate**
+
+Use the mandatory gate above and append a `Slice 12: README application architecture description` entry to `docs/superpowers/reviews/2026-05-11-telegram-mcp-arch-hardening-review.md`.
+
 ## Future Follow-Up
 
 After this pass, do not add new Telegram tool families without first checking `docs/project-arch-rules.md` and the focused query modules for the correct owner. If a new tool crosses folder/chat/message/thread boundaries, add a small orchestrator instead of growing a broad adapter again.
