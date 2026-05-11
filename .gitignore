@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build and coverage output
+dist/
+coverage/
+*.tsbuildinfo
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+sessions/
+*.session
+*.session.json
+
+# Runtime logs
+logs/
+*.log
+*.jsonl
+
+# Local editor and OS files
+.DS_Store
+.idea/
+.vscode/
+
+# Local agent/process artifacts
+.codex/
+.agents/
