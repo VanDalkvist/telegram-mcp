@@ -723,6 +723,24 @@ Keep English terms as explicit technical terms, not as half-translated sentence 
 
 Use the mandatory gate above and append a `Slice 13: README architecture term consistency` entry to `docs/superpowers/reviews/2026-05-11-telegram-mcp-arch-hardening-review.md`.
 
+## Task 15: Make PAR-1 Discoverable In Project Rules
+
+**Files:**
+- Modify: `docs/project-arch-rules.md`
+- Modify: `docs/superpowers/reviews/2026-05-11-telegram-mcp-arch-hardening-review.md`
+
+- [x] **Step 1: Add explicit PAR-1 alias**
+
+Make the project rule discoverable as both `PAR-1` and `PAR-001`, because users may look for the short rule id while plans and logs use the zero-padded id.
+
+- [x] **Step 2: Expand the rule into its own section**
+
+Add a dedicated `Project Rules` section that explains the rule, allowed patterns, forbidden dumping-ground modules, and the relationship between `PAR-1` and `PAR-001`.
+
+- [x] **Step 3: Run post-slice architecture review gate**
+
+Use the mandatory gate above and append a `Slice 14: PAR-1 discoverability` entry to `docs/superpowers/reviews/2026-05-11-telegram-mcp-arch-hardening-review.md`.
+
 ## Future Follow-Up
 
 After this pass, do not add new Telegram tool families without first checking `docs/project-arch-rules.md` and the focused query modules for the correct owner. If a new tool crosses folder/chat/message/thread boundaries, add a small orchestrator instead of growing a broad adapter again.

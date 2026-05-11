@@ -11,7 +11,7 @@ The project is local-first, but it reads real user Telegram data, so privacy and
 ## Applicable Critical Rules
 
 - AP-011: keep modules cohesive.
-- PAR-001: each Telegram MCP tool/query scenario must have one primary module named after the business operation. Do not group new tool scenarios into broad `*-queries`, `helpers`, `utils`, `common`, or `misc` files.
+- PAR-1 / PAR-001: each Telegram MCP tool/query scenario must have one primary module named after the business operation. Do not group new tool scenarios into broad `*-queries`, `helpers`, `utils`, `common`, or `misc` files.
 - AP-012: fail fast on invalid inputs, invalid Telegram responses, config, auth and access failures.
 - AP-013: do not substitute corrupted user data with silent fallbacks.
 - AP-016: make trusted security boundaries explicit; the local Telegram session is the boundary for this MVP.
@@ -26,6 +26,26 @@ The project is local-first, but it reads real user Telegram data, so privacy and
 - AP-039/AP-040: the local Telegram session is the trusted auth boundary for this MVP.
 - AP-042: secrets and sessions never enter git, logs, DTOs or debug dumps.
 - AP-043: validate every external MCP/tool input before calling Telegram.
+
+## Project Rules
+
+### PAR-1 / PAR-001: One Telegram Tool Scenario Per Business Module
+
+Every Telegram MCP tool/query scenario must have one primary module named after the business operation it implements.
+
+Do:
+
+- add or reuse a focused module such as `list-folders`, `resolve-chat`, `search-messages`, or `get-message-context`;
+- name shared modules after a domain operation or contract, for example `folder-peer-entities` or `search-global-messages`;
+- keep `telegram-client-adapter` as a thin delegator over these operation modules.
+
+Do not:
+
+- grow a broad adapter with many unrelated Telegram operations;
+- create generic `helpers`, `utils`, `common`, or `misc` files;
+- add broad buckets like `telegram-message-queries` or `telegram-chat-queries` when the file becomes a dumping ground for multiple tool scenarios.
+
+`PAR-1` is the short project-rule name. `PAR-001` is the stable zero-padded id used in plans, review logs, and grep-friendly references.
 
 ## Project Deviations
 

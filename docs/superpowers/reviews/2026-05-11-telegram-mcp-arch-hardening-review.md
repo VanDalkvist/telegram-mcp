@@ -103,3 +103,11 @@
 - Business path review: pass. The architecture section remains a component and request-flow description, but now uses the same vocabulary as the project architecture rules instead of avoiding useful technical terms.
 - Residual risks: none for this docs-only slice.
 - Decision: proceed.
+
+## Slice 14: PAR-1 Discoverability
+
+- Verification: `rg -n "PAR-1|PAR-001|Project Rules" docs/project-arch-rules.md` -> pass; both short and stable ids are discoverable. `git diff --check` -> pass. `npm test` -> pass; 12 test files and 68 tests passed. `npm run typecheck` -> pass. `npm pack --dry-run` -> pass.
+- AP review: PAR-1/PAR-001, AP-011, AP-016, AP-020, AP-025, AP-032, and AP-042 remain intact. The project rule is now explicit in its own section, with allowed focused modules, forbidden dumping-ground modules, and the id relationship documented.
+- Business path review: pass. A maintainer or agent can now find the project rule by searching either `PAR-1` or `PAR-001`, instead of having to infer it from a single line in the critical rules list.
+- Residual risks: none for this docs-only slice.
+- Decision: proceed.
