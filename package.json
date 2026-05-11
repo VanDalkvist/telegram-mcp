@@ -1,0 +1,44 @@
+{
+  "name": "telegram-mcp",
+  "version": "0.1.0",
+  "description": "Read-only Model Context Protocol server for searching and reading Telegram via a user MTProto session.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "telegram-mcp": "./dist/cli/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "mcp",
+    "telegram",
+    "mtproto",
+    "gramjs"
+  ],
+  "scripts": {
+    "auth": "tsx src/cli/index.ts auth",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "tsx src/cli/index.ts",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "big-integer": "^1.6.52",
+    "dotenv": "17.2.3",
+    "telegram": "2.26.22",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "tsx": "4.21.0",
+    "typescript": "6.0.3",
+    "vitest": "4.1.5"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
