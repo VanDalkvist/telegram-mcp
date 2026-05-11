@@ -2,6 +2,10 @@
 
 Статус: пройден с исправлениями.
 
+Repo audit report:
+
+- [docs/security/codex-security-audit-2026-05-11.md](codex-security-audit-2026-05-11.md)
+
 Scope:
 
 - Repository-wide scan текущей ветки `codex/telegram-mcp-arch-fixes`.
