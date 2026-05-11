@@ -669,6 +669,24 @@ Cold-read the README as a new user and verify the path remains actionable: under
 
 Use the mandatory gate above and append a `Slice 10: Russian README localization` entry to `docs/superpowers/reviews/2026-05-11-telegram-mcp-arch-hardening-review.md`.
 
+## Task 12: README Architecture Wording Repair
+
+**Files:**
+- Modify: `README.md`
+- Modify: `docs/superpowers/reviews/2026-05-11-telegram-mcp-arch-hardening-review.md`
+
+- [x] **Step 1: Remove literal English/Russian calques**
+
+Replace mixed-language phrases such as `ports-and-adapters shape`, `adapter modules владеют calls`, and `business operation` with readable Russian prose while preserving technical identifiers where they are actual code/API names.
+
+- [x] **Step 2: Describe architecture through project rules**
+
+The README architecture section must describe the repo's real architecture policy: local Telegram session as trusted boundary, read-only tools, fail-fast config/auth/session checks, input validation, typed errors, stable DTO/refs, and operation-based module ownership.
+
+- [x] **Step 3: Run post-slice architecture review gate**
+
+Use the mandatory gate above and append a `Slice 11: README architecture wording repair` entry to `docs/superpowers/reviews/2026-05-11-telegram-mcp-arch-hardening-review.md`.
+
 ## Future Follow-Up
 
 After this pass, do not add new Telegram tool families without first checking `docs/project-arch-rules.md` and the focused query modules for the correct owner. If a new tool crosses folder/chat/message/thread boundaries, add a small orchestrator instead of growing a broad adapter again.

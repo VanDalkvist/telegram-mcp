@@ -79,3 +79,11 @@
 - Business path review: pass. A Russian-speaking cold reader can now understand the product value, configure `.env`, authenticate, build, connect Codex or Claude Code, and run smoke checks without relying on prior project context.
 - Residual risks: README deliberately keeps code-facing terms, tool ids, environment variables, CLI commands, and protocol names in English to avoid breaking copy/paste accuracy and API naming clarity.
 - Decision: proceed.
+
+## Slice 11: README Architecture Wording Repair
+
+- Verification: `git diff --check` -> pass. README wording scan confirmed the criticized mixed-language phrases were removed from the public README. `npm test` -> pass; 12 test files and 68 tests passed. `npm run typecheck` -> pass. `npm pack --dry-run` -> pass and includes the updated README.
+- AP review: AP-016/AP-020/AP-021/AP-022/AP-026/AP-027/AP-032/AP-042 pass because the README architecture section now describes the actual project invariants: local Telegram session as trusted boundary, read-only MCP tools, fail-fast config/auth/session readiness, input validation, typed errors, stable DTO/refs, and operation-owned code boundaries. PAR-001/AP-011 pass because the docs continue to forbid generic dumping-ground modules.
+- Business path review: pass. The section now reads as Russian documentation for this project rather than a literal translation of implementation jargon, and it points readers to `docs/design.md` and `docs/project-arch-rules.md` for the full policy.
+- Residual risks: none for this docs-only slice.
+- Decision: proceed.
