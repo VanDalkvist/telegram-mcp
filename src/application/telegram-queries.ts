@@ -1,5 +1,6 @@
 import type {
   BatchSearchResult,
+  ChatPage,
   ChatMetadata,
   ChatSummary,
   FolderSummary,
@@ -17,6 +18,13 @@ export interface ListChatsInput {
   limit: number;
   type: ChatFilterType;
   folder_ref?: string | undefined;
+}
+
+export interface ListFolderChatsPageInput {
+  folder_ref: string;
+  limit: number;
+  type: ChatFilterType;
+  cursor?: string | undefined;
 }
 
 export interface SearchChatsInput {
@@ -126,6 +134,7 @@ export interface TelegramQueries {
   listFolders(input: ListFoldersInput): Promise<{ folders: FolderSummary[] }>;
   resolveFolder(input: ResolveFolderInput): Promise<{ folder: FolderSummary }>;
   listChats(input: ListChatsInput): Promise<{ chats: ChatSummary[] }>;
+  listFolderChatsPage(input: ListFolderChatsPageInput): Promise<{ chats: ChatSummary[]; page: ChatPage }>;
   searchChats(input: SearchChatsInput): Promise<{ chats: ChatSummary[] }>;
   resolveChat(input: ResolveChatInput): Promise<{ chat: ChatSummary }>;
   getChat(input: GetChatInput): Promise<{ chat: ChatMetadata }>;

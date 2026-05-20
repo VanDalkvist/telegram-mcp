@@ -16,6 +16,8 @@ export function createToolHandlers(queries: TelegramQueries): ToolHandlers {
       queries.listChats(parseToolInput("telegram_list_chats", input)),
     telegram_list_folder_chats: async (input) =>
       queries.listChats(parseToolInput("telegram_list_folder_chats", input)),
+    telegram_list_folder_chats_page: async (input) =>
+      queries.listFolderChatsPage(parseToolInput("telegram_list_folder_chats_page", input)),
     telegram_search_chats: async (input) =>
       queries.searchChats(parseToolInput("telegram_search_chats", input)),
     telegram_resolve_chat: async (input) =>
