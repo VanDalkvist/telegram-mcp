@@ -22,6 +22,13 @@ describe("toolSchemas", () => {
       folder_ref: "folder-ref"
     });
 
+    expect(toolSchemas.telegram_list_folder_chats_page.parse({ folder_ref: "folder-ref", cursor: "next" })).toEqual({
+      folder_ref: "folder-ref",
+      cursor: "next",
+      limit: 50,
+      type: "any"
+    });
+
     expect(toolSchemas.telegram_search_messages.parse({ query: "needle", folder_ref: "folder-ref" })).toEqual({
       query: "needle",
       folder_ref: "folder-ref",

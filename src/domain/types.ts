@@ -51,6 +51,11 @@ export interface ChatSummary {
   is_public: boolean;
 }
 
+export interface ChatPage {
+  order: "recent_first";
+  next_cursor?: string;
+}
+
 export interface ChatMetadata extends ChatSummary {
   description?: string;
   participants_count?: number;

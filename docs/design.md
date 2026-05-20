@@ -175,6 +175,24 @@ Output:
 
 Folder expansion должен быть bounded. Для explicit folders используются `pinned_peers` и `include_peers`. Для rule-based folders можно best-effort расширять recent dialogs по flags вроде `groups`, `broadcasts`, `bots`, `contacts`, `nonContacts`, но нельзя делать unbounded scan всего аккаунта.
 
+### `telegram_list_folder_chats_page`
+
+Постранично читает chats внутри resolved Telegram dialog filter/folder.
+
+Inputs:
+
+- `folder_ref`: string.
+- `limit`: number, default 50, max 100.
+- `type`: optional enum `any`, `channel`, `group`, `user`.
+- `cursor`: optional string returned by previous page.
+
+Output:
+
+- `chats`: array of chat summaries.
+- `page`: `{ order: "recent_first", next_cursor?: string }`.
+
+Pagination использует Telegram dialog offsets: `offsetDate`, `offsetId`, `offsetPeer`, `folder`. Cursor создаётся из последнего dialog текущей страницы. Для полного inventory папки вызывающий должен идти страницами с `type: "any"` до отсутствия `next_cursor`; фильтр `type` применяется к Telegram page после чтения страницы.
+
 ### `telegram_search_chats`
 
 Ищет чаты, группы, каналы и пользователей по query.
@@ -256,7 +274,7 @@ Output:
 
 ### `telegram_search_messages_page`
 
-Ищет сообщения с cursor pagination. Chat/global scopes должны поддерживать cursor. Folder scope остается bounded best-effort, потому что Telegram не дает один стабильный cursor для client-side fan-out по произвольной папке.
+Ищет сообщения с cursor pagination. Chat/global scopes должны поддерживать cursor. Folder scope остаётся bounded best-effort для message fan-out. Для полного inventory папки используйте `telegram_list_folder_chats_page`, затем читайте нужные чаты отдельными chat-scoped calls.
 
 Inputs:
 

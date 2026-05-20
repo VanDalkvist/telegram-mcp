@@ -8,6 +8,7 @@ import type {
   GetRecentMessagesInput,
   GetSearchCountersInput,
   GetThreadInput,
+  ListFolderChatsPageInput,
   ListFoldersInput,
   ListChatsInput,
   ResolveFolderInput,
@@ -21,6 +22,7 @@ import type {
 } from "../application/telegram-queries.js";
 import type {
   BatchSearchResult,
+  ChatPage,
   ChatMetadata,
   ChatSummary,
   FolderSummary,
@@ -41,6 +43,7 @@ import { getMessages } from "./telegram-queries/get-messages.js";
 import { getRecentMessages } from "./telegram-queries/get-recent-messages.js";
 import { getSearchCounters } from "./telegram-queries/get-search-counters.js";
 import { getThread } from "./telegram-queries/get-thread.js";
+import { listFolderChatsPage } from "./telegram-queries/list-folder-chats-page.js";
 import { listChats } from "./telegram-queries/list-chats.js";
 import { listFolders } from "./telegram-queries/list-folders.js";
 import { resolveChat } from "./telegram-queries/resolve-chat.js";
@@ -70,6 +73,10 @@ export class TelegramClientAdapter implements TelegramQueries {
 
   public async listChats(input: ListChatsInput): Promise<{ chats: ChatSummary[] }> {
     return listChats(this.context, input);
+  }
+
+  public async listFolderChatsPage(input: ListFolderChatsPageInput): Promise<{ chats: ChatSummary[]; page: ChatPage }> {
+    return listFolderChatsPage(this.context, input);
   }
 
   public async searchChats(input: SearchChatsInput): Promise<{ chats: ChatSummary[] }> {

@@ -60,6 +60,12 @@ export const toolSchemas = {
     limit: z.number().int().positive().max(100).default(50),
     type: typeSchema
   }),
+  telegram_list_folder_chats_page: z.object({
+    folder_ref: folderRef,
+    limit: z.number().int().positive().max(100).default(50),
+    type: typeSchema,
+    cursor: z.string().trim().min(1).optional()
+  }),
   telegram_search_chats: z.object({
     query: z.string().trim().min(1),
     type: typeSchema,

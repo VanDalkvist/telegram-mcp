@@ -185,6 +185,102 @@ describe("TelegramClientAdapter", () => {
     expect(client.getDialogs).toHaveBeenCalledWith({ limit: 5 });
   });
 
+  test("pages Telegram folder chats with a cursor-backed dialog offset", async () => {
+    const folderRef = folderRefFor({ id: 7, title: "Research Folder" });
+    const firstDialogs = [
+      {
+        title: "Env Alpha",
+        isChannel: true,
+        isGroup: false,
+        isUser: false,
+        date: 1779285600,
+        message: { id: 20, date: 1779285600 },
+        entity: { id: "100", accessHash: "200", title: "Env Alpha" }
+      }
+    ];
+    const secondDialogs = [
+      {
+        title: "Env Beta",
+        isChannel: true,
+        isGroup: false,
+        isUser: false,
+        date: 1779282000,
+        message: { id: 19, date: 1779282000 },
+        entity: { id: "101", accessHash: "201", title: "Env Beta" }
+      }
+    ];
+    const client = makeClient({
+      dialogFilters: [
+        {
+          id: 7,
+          title: "Research Folder",
+          pinnedPeers: [],
+          includePeers: [],
+          excludePeers: []
+        }
+      ],
+      dialogs: firstDialogs
+    });
+    const adapter = new TelegramClientAdapter(client as unknown as GramJsLikeClient);
+
+    const firstPage = await adapter.listFolderChatsPage({ folder_ref: folderRef, limit: 1, type: "any" });
+
+    expect(firstPage.chats.map((chat) => chat.title)).toEqual(["Env Alpha"]);
+    expect(firstPage.page).toMatchObject({ order: "recent_first", next_cursor: expect.any(String) });
+    expect(client.getDialogs).toHaveBeenCalledWith({ folder: 7, limit: 1 });
+    const cursor = firstPage.page.next_cursor;
+    if (cursor === undefined) {
+      throw new Error("Expected folder chat page cursor");
+    }
+
+    client.getDialogs.mockResolvedValueOnce(secondDialogs);
+    const secondPage = await adapter.listFolderChatsPage({
+      folder_ref: folderRef,
+      limit: 1,
+      type: "any",
+      cursor
+    });
+
+    expect(secondPage.chats.map((chat) => chat.title)).toEqual(["Env Beta"]);
+    expect(client.getDialogs).toHaveBeenLastCalledWith({
+      folder: 7,
+      limit: 1,
+      offsetDate: 1779285600,
+      offsetId: 20,
+      offsetPeer: expect.any(Api.InputPeerChannel),
+      ignorePinned: true
+    });
+  });
+
+  test("fails fast on malformed folder chat pagination cursors", async () => {
+    const folderRef = folderRefFor({ id: 7, title: "Research Folder" });
+    const client = makeClient({
+      dialogFilters: [
+        {
+          id: 7,
+          title: "Research Folder",
+          pinnedPeers: [],
+          includePeers: [],
+          excludePeers: []
+        }
+      ]
+    });
+    const adapter = new TelegramClientAdapter(client as unknown as GramJsLikeClient);
+
+    await expect(
+      adapter.listFolderChatsPage({ folder_ref: folderRef, limit: 1, type: "any", cursor: "not-json" })
+    ).rejects.toMatchObject({ code: "CONFIG_INVALID" });
+
+    const invalidPeerCursor = Buffer.from(JSON.stringify({
+      offset_date: 1779285600,
+      offset_id: 20,
+      offset_peer: "broken-chat-ref"
+    }), "utf8").toString("base64url");
+    await expect(
+      adapter.listFolderChatsPage({ folder_ref: folderRef, limit: 1, type: "any", cursor: invalidPeerCursor })
+    ).rejects.toMatchObject({ code: "CONFIG_INVALID" });
+  });
+
   test("honors excluded peers when rule-based folder expansion sees megagroups as channels", async () => {
     const folderRef = folderRefFor({ id: 7, title: "Research Folder" });
     const excludedPeer = new Api.InputPeerChannel({ channelId: bigInt("1"), accessHash: bigInt("200") });

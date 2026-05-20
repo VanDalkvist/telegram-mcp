@@ -41,6 +41,7 @@ function makeQueries(): MockTelegramQueries {
   return {
     listFolders: vi.fn(),
     resolveFolder: vi.fn(),
+    listFolderChatsPage: vi.fn(),
     listChats: vi.fn(),
     searchChats: vi.fn(),
     resolveChat: vi.fn(),
@@ -95,6 +96,12 @@ const toolDelegationCases: ToolDelegationCase[] = [
     query: "listChats",
     input: { folder_ref: "folder-ref" },
     expectedInput: { folder_ref: "folder-ref", limit: 50, type: "any" }
+  },
+  {
+    tool: "telegram_list_folder_chats_page",
+    query: "listFolderChatsPage",
+    input: { folder_ref: "folder-ref", cursor: "next" },
+    expectedInput: { folder_ref: "folder-ref", cursor: "next", limit: 50, type: "any" }
   },
   {
     tool: "telegram_search_chats",

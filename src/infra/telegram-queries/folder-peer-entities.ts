@@ -28,7 +28,7 @@ export async function getFolderPeerEntities(context: TelegramQueryContext, folde
   return uniqueEntities([...explicitEntities, ...ruleEntities]).slice(0, limit);
 }
 
-async function getFolderFilterById(context: TelegramQueryContext, folderId: number): Promise<unknown> {
+export async function getFolderFilterById(context: TelegramQueryContext, folderId: number): Promise<unknown> {
   const response = await context.client.invoke(new Api.messages.GetDialogFilters());
   const filters = rawFolderFilters(response);
   const filter = filters.find((candidate) => readNumber(asRecord(candidate).id) === folderId);

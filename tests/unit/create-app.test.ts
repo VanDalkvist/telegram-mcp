@@ -171,6 +171,7 @@ describe("sanitizePublicErrorForLog", () => {
         listFolders: vi.fn(),
         resolveFolder: vi.fn(),
         listChats: vi.fn(),
+        listFolderChatsPage: vi.fn(),
         searchChats: vi.fn(),
         resolveChat: vi.fn().mockRejectedValue(
           new AppError("CHAT_AMBIGUOUS", "Multiple chats match", {
@@ -252,6 +253,7 @@ function makeQueries() {
     listFolders: vi.fn(),
     resolveFolder: vi.fn(),
     listChats: vi.fn(),
+    listFolderChatsPage: vi.fn(),
     searchChats: vi.fn(),
     resolveChat: vi.fn(),
     getChat: vi.fn(),

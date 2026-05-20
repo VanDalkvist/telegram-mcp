@@ -24,6 +24,7 @@ export function createMcpServer(queries: TelegramQueries, options: McpServerOpti
   registerTool(server, logger, "telegram_resolve_folder", "Resolve a Telegram folder/dialog filter title, id, or folder_ref into a stable folder_ref.", handlers.telegram_resolve_folder);
   registerTool(server, logger, "telegram_list_chats", "List recent Telegram chats visible to the authorized user.", handlers.telegram_list_chats);
   registerTool(server, logger, "telegram_list_folder_chats", "List Telegram chats inside one resolved folder/dialog filter.", handlers.telegram_list_folder_chats);
+  registerTool(server, logger, "telegram_list_folder_chats_page", "Page through Telegram chats inside one resolved folder/dialog filter.", handlers.telegram_list_folder_chats_page);
   registerTool(server, logger, "telegram_search_chats", "Search Telegram chats, groups, channels, and users by query.", handlers.telegram_search_chats);
   registerTool(server, logger, "telegram_resolve_chat", "Resolve a user-provided chat reference into a stable chat_ref.", handlers.telegram_resolve_chat);
   registerTool(server, logger, "telegram_get_chat", "Get metadata for a resolved Telegram chat.", handlers.telegram_get_chat);
