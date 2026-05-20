@@ -39,9 +39,10 @@ export async function searchMessagesPage(
 
     const { response, messages } = await searchGlobalMessages(context, input, new Api.InputMessagesFilterEmpty(), cursor);
     const nextRate = readNumber(asRecord(response).nextRate ?? asRecord(response).next_rate);
+    const nextPeer = messages.at(-1)?.chat_ref;
     return {
       messages,
-      page: pageForMessages(messages, "newer_to_older", messages.length >= input.limit, nextRate)
+      page: pageForMessages(messages, "newer_to_older", messages.length >= input.limit, nextRate, nextPeer)
     };
   } catch (error) {
     throw normalizeKnownError(error);

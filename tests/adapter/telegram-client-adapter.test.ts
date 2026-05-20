@@ -307,6 +307,31 @@ describe("TelegramClientAdapter", () => {
     });
   });
 
+  test("does not apply folder exclusions across different peer types with the same id", async () => {
+    const folderRef = folderRefFor({ id: 7, title: "Research Folder" });
+    const excludedUserPeer = new Api.InputPeerUser({ userId: bigInt("1"), accessHash: bigInt("200") });
+    const client = makeClient({
+      dialogFilters: [
+        {
+          id: 7,
+          title: "Research Folder",
+          pinnedPeers: [],
+          includePeers: [],
+          excludePeers: [excludedUserPeer],
+          groups: true
+        }
+      ],
+      dialogs: [
+        { title: "Group With Same Id", isChannel: false, isGroup: true, isUser: false, entity: { id: "1", title: "Group With Same Id", megagroup: true } }
+      ]
+    });
+    const adapter = new TelegramClientAdapter(client as unknown as GramJsLikeClient);
+
+    await expect(adapter.listChats({ limit: 5, type: "any", folder_ref: folderRef })).resolves.toMatchObject({
+      chats: [{ title: "Group With Same Id", type: "group" }]
+    });
+  });
+
   test("honors excluded peers for explicit folder includes and pins", async () => {
     const folderRef = folderRefFor({ id: 7, title: "Research Folder" });
     const includedPeer = new Api.InputPeerChannel({ channelId: bigInt("1"), accessHash: bigInt("100") });
@@ -639,6 +664,43 @@ describe("TelegramClientAdapter", () => {
     expect(request.maxDate).toBe(toUnixSeconds("2026-05-15", "end"));
   });
 
+  test("carries offset peer through global search pagination cursors", async () => {
+    const client = makeClient({});
+    client.invoke
+      .mockResolvedValueOnce({
+        messages: [
+          { id: 77, date: new Date("2026-05-10T10:00:00Z"), message: "first page", peerId: { channelId: "100" } }
+        ],
+        chats: [{ id: "100", accessHash: "200", title: "Private Channel" }],
+        users: [],
+        nextRate: 3
+      })
+      .mockResolvedValueOnce({
+        messages: [
+          { id: 76, date: new Date("2026-05-09T10:00:00Z"), message: "second page", peerId: { channelId: "100" } }
+        ],
+        chats: [{ id: "100", accessHash: "200", title: "Private Channel" }],
+        users: []
+      });
+    const adapter = new TelegramClientAdapter(client as unknown as GramJsLikeClient);
+
+    const firstPage = await adapter.searchMessagesPage({ query: "hit", limit: 1 });
+    const cursor = firstPage.page.next_cursor;
+    if (cursor === undefined) {
+      throw new Error("Expected global search cursor");
+    }
+    await adapter.searchMessagesPage({ query: "hit", limit: 1, cursor });
+
+    const secondRequest = client.invoke.mock.calls[1]![0] as {
+      offsetId?: number;
+      offsetRate?: number;
+      offsetPeer?: unknown;
+    };
+    expect(secondRequest.offsetId).toBe(77);
+    expect(secondRequest.offsetRate).toBe(3);
+    expect(secondRequest.offsetPeer).toBeInstanceOf(Api.InputPeerChannel);
+  });
+
   test("reads recent messages by date window for a chat", async () => {
     const chatRef = chatRefFor({ id: "1", type: "group", title: "Team" });
     const entity = { id: "1", title: "Team" };
@@ -774,6 +836,23 @@ describe("TelegramClientAdapter", () => {
     expect(result.target.message_id).toBe(42);
     expect(result.before.map((message) => message.message_id)).toEqual([41]);
     expect(result.after.map((message) => message.message_id)).toEqual([43]);
+  });
+
+  test("normalizes Telegram errors while reading message context neighbors", async () => {
+    const chatRef = chatRefFor({ id: "1", type: "group", title: "Team" });
+    const client = makeClient({
+      entity: { id: "1", title: "Team" },
+      messages: [{ id: 42, date: new Date("2026-05-01T10:00:00Z"), message: "target" }]
+    });
+    client.getMessages
+      .mockResolvedValueOnce([{ id: 42, date: new Date("2026-05-01T10:00:00Z"), message: "target" }])
+      .mockRejectedValueOnce(Object.assign(new Error("FLOOD_WAIT_12"), { seconds: 12 }));
+    const adapter = new TelegramClientAdapter(client as unknown as GramJsLikeClient);
+
+    await expect(adapter.getMessageContext({ chat_ref: chatRef, message_id: 42, before: 1, after: 1 })).rejects.toMatchObject({
+      code: "RATE_LIMITED",
+      retryAfterSeconds: 12
+    });
   });
 });
 

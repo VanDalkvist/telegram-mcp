@@ -85,23 +85,33 @@ export function entityPeerKey(entity: unknown): string {
 }
 
 export function entityFolderPeerKey(entity: unknown): string {
-  const chat = chatSummaryFromEntity(entity);
-  return `peer:${chat.id}`;
+  const record = asRecord(entity);
+  const id = stringifyOptionalId(record.id);
+  if (id === undefined) {
+    return JSON.stringify(entity);
+  }
+  if (record.className === "User" || record.firstName !== undefined || record.first_name !== undefined || record.lastName !== undefined || record.last_name !== undefined) {
+    return `user:${id}`;
+  }
+  if (record.className === "Chat") {
+    return `chat:${id}`;
+  }
+  return `channel:${id}`;
 }
 
 export function folderPeerKey(peer: unknown): string {
   const record = asRecord(peer);
   const channelId = stringifyOptionalId(record.channelId ?? record.channel_id);
   if (channelId !== undefined) {
-    return `peer:${channelId}`;
+    return `channel:${channelId}`;
   }
   const chatId = stringifyOptionalId(record.chatId ?? record.chat_id);
   if (chatId !== undefined) {
-    return `peer:${chatId}`;
+    return `chat:${chatId}`;
   }
   const userId = stringifyOptionalId(record.userId ?? record.user_id);
   if (userId !== undefined) {
-    return `peer:${userId}`;
+    return `user:${userId}`;
   }
   return JSON.stringify(peer);
 }
