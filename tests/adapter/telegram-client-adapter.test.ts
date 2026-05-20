@@ -185,41 +185,30 @@ describe("TelegramClientAdapter", () => {
     expect(client.getDialogs).toHaveBeenCalledWith({ limit: 5 });
   });
 
-  test("pages Telegram folder chats with a cursor-backed dialog offset", async () => {
+  test("pages Telegram folder chats with a cursor-backed dialog filter inventory", async () => {
     const folderRef = folderRefFor({ id: 7, title: "Research Folder" });
-    const firstDialogs = [
-      {
-        title: "Env Alpha",
-        isChannel: true,
-        isGroup: false,
-        isUser: false,
-        date: 1779285600,
-        message: { id: 20, date: 1779285600 },
-        entity: { id: "100", accessHash: "200", title: "Env Alpha" }
-      }
-    ];
-    const secondDialogs = [
-      {
-        title: "Env Beta",
-        isChannel: true,
-        isGroup: false,
-        isUser: false,
-        date: 1779282000,
-        message: { id: 19, date: 1779282000 },
-        entity: { id: "101", accessHash: "201", title: "Env Beta" }
-      }
-    ];
+    const alphaPeer = new Api.InputPeerChannel({ channelId: bigInt("100"), accessHash: bigInt("200") });
+    const betaPeer = new Api.InputPeerChannel({ channelId: bigInt("101"), accessHash: bigInt("201") });
     const client = makeClient({
       dialogFilters: [
         {
           id: 7,
           title: "Research Folder",
           pinnedPeers: [],
-          includePeers: [],
+          includePeers: [alphaPeer, betaPeer],
           excludePeers: []
         }
-      ],
-      dialogs: firstDialogs
+      ]
+    });
+    client.getEntity.mockImplementation((peer: { channelId?: { toString(): string } }) => {
+      const id = peer.channelId?.toString();
+      if (id === "100") {
+        return Promise.resolve({ id: "100", accessHash: "200", title: "Env Alpha" });
+      }
+      if (id === "101") {
+        return Promise.resolve({ id: "101", accessHash: "201", title: "Env Beta" });
+      }
+      return Promise.reject(new Error(`Unexpected peer ${id}`));
     });
     const adapter = new TelegramClientAdapter(client as unknown as GramJsLikeClient);
 
@@ -227,13 +216,11 @@ describe("TelegramClientAdapter", () => {
 
     expect(firstPage.chats.map((chat) => chat.title)).toEqual(["Env Alpha"]);
     expect(firstPage.page).toMatchObject({ order: "recent_first", next_cursor: expect.any(String) });
-    expect(client.getDialogs).toHaveBeenCalledWith({ folder: 7, limit: 1 });
     const cursor = firstPage.page.next_cursor;
     if (cursor === undefined) {
       throw new Error("Expected folder chat page cursor");
     }
 
-    client.getDialogs.mockResolvedValueOnce(secondDialogs);
     const secondPage = await adapter.listFolderChatsPage({
       folder_ref: folderRef,
       limit: 1,
@@ -242,14 +229,57 @@ describe("TelegramClientAdapter", () => {
     });
 
     expect(secondPage.chats.map((chat) => chat.title)).toEqual(["Env Beta"]);
-    expect(client.getDialogs).toHaveBeenLastCalledWith({
-      folder: 7,
-      limit: 1,
-      offsetDate: 1779285600,
-      offsetId: 20,
-      offsetPeer: expect.any(Api.InputPeerChannel),
-      ignorePinned: true
+    expect(secondPage.page.next_cursor).toBeUndefined();
+    expect(client.getDialogs).not.toHaveBeenCalled();
+  });
+
+  test("does not page custom Telegram dialog filters through server folder_id", async () => {
+    const folderRef = folderRefFor({ id: 7, title: "Research Folder" });
+    const alphaPeer = new Api.InputPeerChannel({ channelId: bigInt("100"), accessHash: bigInt("200") });
+    const betaPeer = new Api.InputPeerChannel({ channelId: bigInt("101"), accessHash: bigInt("201") });
+    const client = makeClient({
+      dialogFilters: [
+        {
+          id: 7,
+          title: "Research Folder",
+          pinnedPeers: [],
+          includePeers: [alphaPeer, betaPeer],
+          excludePeers: []
+        }
+      ]
     });
+    client.getDialogs.mockRejectedValue(new Error("400: FOLDER_ID_INVALID (caused by messages.GetDialogs)"));
+    client.getEntity.mockImplementation((peer: { channelId?: { toString(): string } }) => {
+      const id = peer.channelId?.toString();
+      if (id === "100") {
+        return Promise.resolve({ id: "100", accessHash: "200", title: "Env Alpha" });
+      }
+      if (id === "101") {
+        return Promise.resolve({ id: "101", accessHash: "201", title: "Env Beta" });
+      }
+      return Promise.reject(new Error(`Unexpected peer ${id}`));
+    });
+    const adapter = new TelegramClientAdapter(client as unknown as GramJsLikeClient);
+
+    const firstPage = await adapter.listFolderChatsPage({ folder_ref: folderRef, limit: 1, type: "any" });
+
+    expect(firstPage.chats.map((chat) => chat.title)).toEqual(["Env Alpha"]);
+    expect(firstPage.page).toMatchObject({ order: "recent_first", next_cursor: expect.any(String) });
+    const cursor = firstPage.page.next_cursor;
+    if (cursor === undefined) {
+      throw new Error("Expected folder chat page cursor");
+    }
+
+    const secondPage = await adapter.listFolderChatsPage({
+      folder_ref: folderRef,
+      limit: 1,
+      type: "any",
+      cursor
+    });
+
+    expect(secondPage.chats.map((chat) => chat.title)).toEqual(["Env Beta"]);
+    expect(secondPage.page.next_cursor).toBeUndefined();
+    expect(client.getDialogs).not.toHaveBeenCalled();
   });
 
   test("fails fast on malformed folder chat pagination cursors", async () => {
