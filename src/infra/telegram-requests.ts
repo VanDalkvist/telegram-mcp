@@ -3,7 +3,7 @@ import type { GetChatParticipantsInput } from "../application/telegram-queries.j
 import type { MediaFilterType, PeerRefValue } from "../domain/types.js";
 import { toBigInteger } from "./telegram-records.js";
 
-export function entityLookupFromPeer(peer: PeerRefValue): unknown {
+export function entityLookupFromPeer(peer: PeerRefValue): Api.TypeEntityLike {
   if (peer.accessHash !== undefined) {
     const id = toBigInteger(peer.id);
     const accessHash = toBigInteger(peer.accessHash);

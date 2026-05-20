@@ -134,7 +134,8 @@ export function pageForMessages(
   messages: MessageSummary[],
   order: MessagePage["order"],
   includeNextCursor = false,
-  nextRate?: number | undefined
+  nextRate?: number | undefined,
+  nextPeer?: string | undefined
 ): MessagePage {
   const page: MessagePage = { order };
   if (messages[0]?.message_id !== undefined) {
@@ -146,7 +147,8 @@ export function pageForMessages(
   if (includeNextCursor && messages.at(-1)?.message_id !== undefined) {
     page.next_cursor = serializeSearchCursor({
       offset_id: messages.at(-1)!.message_id,
-      ...(nextRate === undefined ? {} : { offset_rate: nextRate })
+      ...(nextRate === undefined ? {} : { offset_rate: nextRate }),
+      ...(nextPeer === undefined ? {} : { offset_peer: nextPeer })
     });
   }
   return page;
@@ -163,9 +165,11 @@ export function parseSearchCursor(value?: string | undefined): SearchCursor {
     }
     const offsetId = readNumber(decoded.offset_id);
     const offsetRate = readNumber(decoded.offset_rate);
+    const offsetPeer = readString(decoded.offset_peer);
     return {
       ...(offsetId === undefined ? {} : { offset_id: offsetId }),
-      ...(offsetRate === undefined ? {} : { offset_rate: offsetRate })
+      ...(offsetRate === undefined ? {} : { offset_rate: offsetRate }),
+      ...(offsetPeer === undefined ? {} : { offset_peer: offsetPeer })
     };
   } catch {
     throw new AppError("CONFIG_INVALID", "Invalid search cursor", {
@@ -337,6 +341,7 @@ function serializeSearchCursor(cursor: SearchCursor): string {
 interface SearchCursor {
   offset_id?: number;
   offset_rate?: number;
+  offset_peer?: string;
 }
 
 function buildPeerEntityMap(response: unknown): Map<string, unknown> {
