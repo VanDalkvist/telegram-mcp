@@ -57,7 +57,7 @@ Audit не является гарантией отсутствия уязвим
 
 | Область | Tools |
 | --- | --- |
-| Folders | `telegram_list_folders`, `telegram_resolve_folder`, `telegram_list_folder_chats` |
+| Folders | `telegram_list_folders`, `telegram_resolve_folder`, `telegram_list_folder_chats`, `telegram_list_folder_chats_page` |
 | Chats | `telegram_list_chats`, `telegram_search_chats`, `telegram_resolve_chat`, `telegram_get_chat`, `telegram_get_chat_participants` |
 | Messages | `telegram_search_messages`, `telegram_get_recent_messages`, `telegram_search_messages_page`, `telegram_search_messages_batch`, `telegram_get_messages`, `telegram_get_message`, `telegram_get_message_context` |
 | Threads and discussions | `telegram_get_thread`, `telegram_get_discussion` |
