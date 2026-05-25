@@ -7,6 +7,8 @@ import type { TelegramQueries } from "../application/telegram-queries.js";
 import { type PublicError, toPublicError } from "../domain/errors.js";
 import { createToolHandlers } from "./mcp-tools.js";
 import { toolSchemas, type ToolName } from "./tool-schemas.js";
+import { telegramDownloadProfilePhotoDescription } from "./tools/telegram-download-profile-photo.js";
+import { telegramGetProfilePhotoInfoDescription } from "./tools/telegram-get-profile-photo-info.js";
 
 export interface McpServerOptions {
   logger?: AppLogger;
@@ -24,12 +26,12 @@ export function createMcpServer(queries: TelegramQueries, options: McpServerOpti
   registerTool(server, logger, "telegram_resolve_folder", "Resolve a Telegram folder/dialog filter title, id, or folder_ref into a stable folder_ref.", handlers.telegram_resolve_folder);
   registerTool(server, logger, "telegram_list_chats", "List recent Telegram chats visible to the authorized user.", handlers.telegram_list_chats);
   registerTool(server, logger, "telegram_list_folder_chats", "List Telegram chats inside one resolved folder/dialog filter.", handlers.telegram_list_folder_chats);
-  registerTool(server, logger, "telegram_list_folder_chats_page", "Page through Telegram chats inside one resolved folder/dialog filter.", handlers.telegram_list_folder_chats_page);
+  registerTool(server, logger, "telegram_list_folder_chats_page", "Page through Telegram chats inside one resolved folder/dialog filter. This is the inventory tool for large folders before per-chat message reads.", handlers.telegram_list_folder_chats_page);
   registerTool(server, logger, "telegram_search_chats", "Search Telegram chats, groups, channels, and users by query.", handlers.telegram_search_chats);
   registerTool(server, logger, "telegram_resolve_chat", "Resolve a user-provided chat reference into a stable chat_ref.", handlers.telegram_resolve_chat);
   registerTool(server, logger, "telegram_get_chat", "Get metadata for a resolved Telegram chat.", handlers.telegram_get_chat);
   registerTool(server, logger, "telegram_search_messages", "Search Telegram messages globally, inside one resolved chat, or across a Telegram folder/dialog filter.", handlers.telegram_search_messages);
-  registerTool(server, logger, "telegram_get_recent_messages", "Read recent Telegram messages by date window inside one chat or one folder/dialog filter.", handlers.telegram_get_recent_messages);
+  registerTool(server, logger, "telegram_get_recent_messages", "Read recent Telegram messages by date window inside one chat or one small folder. Folder-wide reads are capped at 50 chats; for larger folders use telegram_list_folder_chats_page, then call this tool per chat_ref.", handlers.telegram_get_recent_messages);
   registerTool(server, logger, "telegram_search_messages_page", "Search Telegram messages with cursor pagination support for chat and global scopes.", handlers.telegram_search_messages_page);
   registerTool(server, logger, "telegram_search_messages_batch", "Run several bounded Telegram message searches and return grouped plus deduped results.", handlers.telegram_search_messages_batch);
   registerTool(server, logger, "telegram_search_media", "Search Telegram messages by media filter such as links, documents, photos, or videos.", handlers.telegram_search_media);
@@ -46,6 +48,8 @@ export function createMcpServer(queries: TelegramQueries, options: McpServerOpti
   registerTool(server, logger, "telegram_get_discussion", "Read discussion messages linked to a Telegram channel post.", handlers.telegram_get_discussion);
   registerTool(server, logger, "telegram_get_search_counters", "Read Telegram search counters by media filter for one chat.", handlers.telegram_get_search_counters);
   registerTool(server, logger, "telegram_get_chat_participants", "Read bounded Telegram chat participant summaries.", handlers.telegram_get_chat_participants);
+  registerTool(server, logger, "telegram_get_profile_photo_info", telegramGetProfilePhotoInfoDescription, handlers.telegram_get_profile_photo_info);
+  registerTool(server, logger, "telegram_download_profile_photo", telegramDownloadProfilePhotoDescription, handlers.telegram_download_profile_photo);
 
   return server;
 }
@@ -129,9 +133,9 @@ export function summarizeToolArgsForLog(name: ToolName, args: unknown): Record<s
     return summary;
   }
 
-  for (const key of ["limit", "type", "from_date", "to_date", "before_message_id", "after_message_id", "message_id", "before", "after", "folder_chat_limit", "media_type", "filter"]) {
+  for (const key of ["limit", "type", "from_date", "to_date", "before_message_id", "after_message_id", "message_id", "before", "after", "folder_chat_limit", "media_type", "filter", "overwrite"]) {
     const value = args[key];
-    if (typeof value === "string" || typeof value === "number") {
+    if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
       summary[key] = value;
     }
   }
@@ -161,8 +165,16 @@ export function summarizeToolArgsForLog(name: ToolName, args: unknown): Record<s
     summary.chat_ref_sha256 = sha256(args.chat_ref);
   }
 
+  if (typeof args.peer_ref === "string") {
+    summary.peer_ref_sha256 = sha256(args.peer_ref);
+  }
+
   if (typeof args.folder_ref === "string") {
     summary.folder_ref_sha256 = sha256(args.folder_ref);
+  }
+
+  if (typeof args.output_file === "string") {
+    summary.output_file_sha256 = sha256(args.output_file);
   }
 
   if (
@@ -173,6 +185,10 @@ export function summarizeToolArgsForLog(name: ToolName, args: unknown): Record<s
     name === "telegram_search_media"
   ) {
     summary.scope = typeof args.chat_ref === "string" ? "chat" : typeof args.folder_ref === "string" ? "folder" : "global";
+  }
+
+  if (name === "telegram_get_profile_photo_info" || name === "telegram_download_profile_photo") {
+    summary.scope = "peer";
   }
 
   return summary;

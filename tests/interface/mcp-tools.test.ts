@@ -57,7 +57,9 @@ function makeQueries(): MockTelegramQueries {
     getThread: vi.fn(),
     getDiscussion: vi.fn(),
     getSearchCounters: vi.fn(),
-    getChatParticipants: vi.fn()
+    getChatParticipants: vi.fn(),
+    getProfilePhotoInfo: vi.fn(),
+    downloadProfilePhoto: vi.fn()
   };
 }
 
@@ -198,5 +200,17 @@ const toolDelegationCases: ToolDelegationCase[] = [
     query: "getChatParticipants",
     input: { chat_ref: "chat-ref" },
     expectedInput: { chat_ref: "chat-ref", filter: "recent", limit: 50 }
+  },
+  {
+    tool: "telegram_get_profile_photo_info",
+    query: "getProfilePhotoInfo",
+    input: { peer_ref: "peer-ref" },
+    expectedInput: { peer_ref: "peer-ref" }
+  },
+  {
+    tool: "telegram_download_profile_photo",
+    query: "downloadProfilePhoto",
+    input: { peer_ref: "peer-ref", output_file: "sources/photo.jpg" },
+    expectedInput: { peer_ref: "peer-ref", output_file: "sources/photo.jpg", overwrite: false }
   }
 ];

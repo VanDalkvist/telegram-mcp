@@ -130,6 +130,16 @@ describe("toolSchemas", () => {
       filter: "recent",
       limit: 50
     });
+
+    expect(toolSchemas.telegram_get_profile_photo_info.parse({ peer_ref: "peer-ref" })).toEqual({
+      peer_ref: "peer-ref"
+    });
+
+    expect(toolSchemas.telegram_download_profile_photo.parse({ peer_ref: "peer-ref", output_file: "sources/photo.jpg" })).toEqual({
+      peer_ref: "peer-ref",
+      output_file: "sources/photo.jpg",
+      overwrite: false
+    });
   });
 
   test("rejects invalid date ranges and non-positive ids", () => {

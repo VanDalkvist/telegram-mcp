@@ -198,8 +198,15 @@ export function normalizeSearchCounters(response: unknown, fallbackMediaTypes: M
 export function participantSummaryFromEntity(entity: unknown): ParticipantSummary {
   const summary = chatSummaryFromEntity(entity);
   const record = asRecord(entity);
+  const accessHash = stringifyOptionalId(record.accessHash ?? record.access_hash);
   return {
     id: summary.id,
+    participant_ref: serializePeerRef({
+      version: 1,
+      type: summary.type,
+      id: summary.id,
+      ...(accessHash === undefined ? {} : { accessHash })
+    }),
     title: summary.title,
     ...(summary.username === undefined ? {} : { username: summary.username }),
     type: summary.type,

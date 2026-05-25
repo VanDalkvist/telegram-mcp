@@ -2,6 +2,8 @@ import { ZodError } from "zod";
 import type { TelegramQueries } from "../application/telegram-queries.js";
 import { AppError } from "../domain/errors.js";
 import { toolSchemas, type ToolName } from "./tool-schemas.js";
+import { createTelegramDownloadProfilePhotoHandler } from "./tools/telegram-download-profile-photo.js";
+import { createTelegramGetProfilePhotoInfoHandler } from "./tools/telegram-get-profile-photo-info.js";
 
 type ToolHandler = (input: unknown) => Promise<unknown>;
 export type ToolHandlers = Record<ToolName, ToolHandler>;
@@ -46,7 +48,9 @@ export function createToolHandlers(queries: TelegramQueries): ToolHandlers {
     telegram_get_search_counters: async (input) =>
       queries.getSearchCounters(parseToolInput("telegram_get_search_counters", input)),
     telegram_get_chat_participants: async (input) =>
-      queries.getChatParticipants(parseToolInput("telegram_get_chat_participants", input))
+      queries.getChatParticipants(parseToolInput("telegram_get_chat_participants", input)),
+    telegram_get_profile_photo_info: createTelegramGetProfilePhotoInfoHandler(queries),
+    telegram_download_profile_photo: createTelegramDownloadProfilePhotoHandler(queries)
   };
 }
 

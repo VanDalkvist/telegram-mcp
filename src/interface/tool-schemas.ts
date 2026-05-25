@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { isStrictIsoDateOnlyString, strictIsoDateTimestampMs } from "../domain/date-window.js";
+import { telegramDownloadProfilePhotoSchema } from "./tools/telegram-download-profile-photo.js";
+import { telegramGetProfilePhotoInfoSchema } from "./tools/telegram-get-profile-photo-info.js";
 
 const typeSchema = z.enum(["any", "channel", "group", "user"]).default("any");
 const mediaTypeSchema = z.enum([
@@ -172,7 +174,9 @@ export const toolSchemas = {
     filter: participantFilterSchema,
     limit: z.number().int().positive().max(100).default(50),
     search: z.string().trim().min(1).optional()
-  })
+  }),
+  telegram_get_profile_photo_info: telegramGetProfilePhotoInfoSchema,
+  telegram_download_profile_photo: telegramDownloadProfilePhotoSchema
 } as const;
 
 export type ToolName = keyof typeof toolSchemas;

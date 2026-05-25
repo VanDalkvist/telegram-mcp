@@ -1,6 +1,9 @@
 import { loadConfigFromDotenv } from "../dist/config/config.js";
 import { buildTelegramRuntime } from "../dist/composition/create-app.js";
 import { createToolHandlers } from "../dist/interface/mcp-tools.js";
+import { mkdtemp, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 
 const today = new Date();
 
@@ -279,6 +282,38 @@ try {
       },
       { optional: true }
     );
+
+    await runTool(
+      "telegram_get_profile_photo_info",
+      "get_profile_photo_info_first_chat",
+      async () => {
+        const result = await tools.telegram_get_profile_photo_info({ peer_ref: firstChatRef });
+        return { available: result.profile_photo.available };
+      },
+      { optional: true }
+    );
+
+    await runTool(
+      "telegram_download_profile_photo",
+      "download_profile_photo_first_chat",
+      async () => {
+        const outputDir = await mkdtemp(join(tmpdir(), "telegram-mcp-live-smoke-"));
+        try {
+          const result = await tools.telegram_download_profile_photo({
+            peer_ref: firstChatRef,
+            output_file: join(outputDir, "profile-photo.jpg")
+          });
+          return {
+            status: result.status,
+            has_bytes: typeof result.bytes === "number",
+            reason: result.reason
+          };
+        } finally {
+          await rm(outputDir, { recursive: true, force: true });
+        }
+      },
+      { optional: true }
+    );
   }
 
   await runTool(
@@ -330,7 +365,9 @@ try {
     "telegram_get_thread",
     "telegram_get_discussion",
     "telegram_get_search_counters",
-    "telegram_get_chat_participants"
+    "telegram_get_chat_participants",
+    "telegram_get_profile_photo_info",
+    "telegram_download_profile_photo"
   ];
   const missedTools = expectedTools.filter((toolName) => !coverage.has(toolName));
   console.log(
@@ -348,5 +385,40 @@ try {
     process.exitCode = 1;
   }
 } finally {
-  await runtime.dispose();
+  disposeRuntimeForSmoke(runtime);
+}
+
+function disposeRuntimeForSmoke(runtime) {
+  const timeoutMs = 5_000;
+  let completed = false;
+  const finish = () => process.exit(process.exitCode ?? 0);
+  const timeout = setTimeout(() => {
+    if (!completed) {
+      console.log(JSON.stringify({
+        scenario: "runtime_dispose",
+        ok: false,
+        optional: true,
+        code: "DISPOSE_TIMEOUT"
+      }));
+    }
+    finish();
+  }, timeoutMs);
+
+  runtime.dispose()
+    .then(() => {
+      completed = true;
+      clearTimeout(timeout);
+      finish();
+    })
+    .catch((error) => {
+      completed = true;
+      clearTimeout(timeout);
+      console.log(JSON.stringify({
+        scenario: "runtime_dispose",
+        ok: false,
+        optional: true,
+        code: errorCode(error)
+      }));
+      finish();
+    });
 }

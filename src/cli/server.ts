@@ -28,9 +28,10 @@ export async function runServer(): Promise<void> {
 
 export async function runServerWithDeps(deps: RunServerDeps): Promise<void> {
   let runtime: TelegramRuntime | undefined;
+  let logger: AppLogger | undefined;
   try {
     const config = deps.loadConfig();
-    const logger = deps.createLogger(config.logPath);
+    logger = deps.createLogger(config.logPath);
     await logger.info("server_starting", {
       operation: "mcp_server",
       correlation_id: `process-${process.pid}`,
@@ -42,8 +43,30 @@ export async function runServerWithDeps(deps: RunServerDeps): Promise<void> {
     await server.connect(deps.createTransport());
   } catch (error) {
     await disposeRuntime(runtime);
-    process.stderr.write(`${JSON.stringify({ error: toPublicError(error) })}\n`);
+    const publicError = toPublicError(error);
+    await logStartupFailure(logger, publicError);
+    process.stderr.write(`${JSON.stringify({ error: publicError })}\n`);
     process.exitCode = 1;
+  }
+}
+
+async function logStartupFailure(logger: AppLogger | undefined, error: ReturnType<typeof toPublicError>): Promise<void> {
+  if (logger === undefined) {
+    return;
+  }
+
+  try {
+    await logger.error("server_startup_failed", {
+      operation: "mcp_server",
+      correlation_id: `process-${process.pid}`,
+      outcome: "failed",
+      error_code: error.code,
+      error_message: error.message,
+      ...(error.details === undefined ? {} : { error_details: error.details }),
+      ...(error.retry_after_seconds === undefined ? {} : { retry_after_seconds: error.retry_after_seconds })
+    });
+  } catch {
+    // Preserve the original startup failure for stdio clients.
   }
 }
 

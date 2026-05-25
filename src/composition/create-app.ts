@@ -8,12 +8,15 @@ import type { TelegramQueries } from "../application/telegram-queries.js";
 export interface BuildTelegramQueriesDeps {
   sessionStore?: SessionStore;
   createClient?: (session: string, config: AppConfig) => AuthenticatedGramJsLikeClient;
+  startupTimeoutMs?: number;
 }
 
 export interface TelegramRuntime {
   queries: TelegramQueries;
   dispose(): Promise<void>;
 }
+
+const DEFAULT_STARTUP_TIMEOUT_MS = 30_000;
 
 export async function buildTelegramRuntime(
   config: AppConfig,
@@ -23,10 +26,11 @@ export async function buildTelegramRuntime(
   const session = await loadSession(sessionStore);
   const createClient = deps.createClient ?? createGramJsClient;
   const client = createClient(session, config);
+  const startupTimeoutMs = deps.startupTimeoutMs ?? DEFAULT_STARTUP_TIMEOUT_MS;
 
   try {
-    await client.connect();
-    if (!(await client.checkAuthorization())) {
+    await withStartupTimeout(client.connect(), "connect", startupTimeoutMs);
+    if (!(await withStartupTimeout(client.checkAuthorization(), "checkAuthorization", startupTimeoutMs))) {
       throw new AppError("AUTH_REQUIRED", "Telegram session is not authorized", {
         publicMessage: "Telegram authorization is required"
       });
@@ -40,6 +44,31 @@ export async function buildTelegramRuntime(
     queries: new TelegramClientAdapter(client),
     dispose: () => disconnectClient(client)
   };
+}
+
+async function withStartupTimeout<T>(operation: Promise<T>, stage: string, timeoutMs: number): Promise<T> {
+  let timeout: NodeJS.Timeout | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      reject(
+        new AppError("TELEGRAM_ERROR", `Telegram startup timed out during ${stage} after ${timeoutMs}ms`, {
+          publicMessage: "Telegram connection timed out",
+          details: {
+            stage,
+            timeout_ms: timeoutMs
+          }
+        })
+      );
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([operation, timeoutPromise]);
+  } finally {
+    if (timeout !== undefined) {
+      clearTimeout(timeout);
+    }
+  }
 }
 
 async function loadSession(sessionStore: SessionStore): Promise<string> {

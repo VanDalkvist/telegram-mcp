@@ -102,8 +102,20 @@ export interface SearchCounterSummary {
 
 export interface ParticipantSummary {
   id: string;
+  participant_ref: string;
   title: string;
   username?: string;
   type?: ChatType;
   bot?: boolean;
+}
+
+export interface ProfilePhotoInfo {
+  available: boolean;
+}
+
+export interface ProfilePhotoDownloadResult {
+  output_file: string;
+  status: "downloaded" | "skipped";
+  bytes?: number;
+  reason?: "no_visible_profile_photo" | "file_exists";
 }

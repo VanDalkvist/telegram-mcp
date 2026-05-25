@@ -8,6 +8,8 @@ import type {
   Message,
   MessagePage,
   MessageSummary,
+  ProfilePhotoDownloadResult,
+  ProfilePhotoInfo,
   ParticipantSummary,
   SearchCounterSummary
 } from "../domain/types.js";
@@ -130,6 +132,16 @@ export interface GetChatParticipantsInput {
   search?: string | undefined;
 }
 
+export interface GetProfilePhotoInfoInput {
+  peer_ref: string;
+}
+
+export interface DownloadProfilePhotoInput {
+  peer_ref: string;
+  output_file: string;
+  overwrite: boolean;
+}
+
 export interface TelegramQueries {
   listFolders(input: ListFoldersInput): Promise<{ folders: FolderSummary[] }>;
   resolveFolder(input: ResolveFolderInput): Promise<{ folder: FolderSummary }>;
@@ -154,4 +166,6 @@ export interface TelegramQueries {
   getDiscussion(input: GetDiscussionInput): Promise<{ messages: MessageSummary[] }>;
   getSearchCounters(input: GetSearchCountersInput): Promise<{ counters: SearchCounterSummary[] }>;
   getChatParticipants(input: GetChatParticipantsInput): Promise<{ participants: ParticipantSummary[] }>;
+  getProfilePhotoInfo(input: GetProfilePhotoInfoInput): Promise<{ profile_photo: ProfilePhotoInfo }>;
+  downloadProfilePhoto(input: DownloadProfilePhotoInput): Promise<ProfilePhotoDownloadResult>;
 }

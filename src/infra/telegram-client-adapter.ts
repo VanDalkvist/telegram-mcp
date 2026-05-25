@@ -2,12 +2,14 @@ import type {
   GetChatInput,
   GetChatParticipantsInput,
   GetDiscussionInput,
+  DownloadProfilePhotoInput,
   GetMessageContextInput,
   GetMessageInput,
   GetMessagesInput,
   GetRecentMessagesInput,
   GetSearchCountersInput,
   GetThreadInput,
+  GetProfilePhotoInfoInput,
   ListFolderChatsPageInput,
   ListFoldersInput,
   ListChatsInput,
@@ -29,14 +31,18 @@ import type {
   Message,
   MessagePage,
   MessageSummary,
+  ProfilePhotoDownloadResult,
+  ProfilePhotoInfo,
   ParticipantSummary,
   SearchCounterSummary
 } from "../domain/types.js";
 import type { GramJsLikeClient } from "./telegram-client-types.js";
 import type { TelegramQueryContext } from "./telegram-queries/telegram-query-context.js";
+import { downloadProfilePhoto } from "./telegram-queries/download-profile-photo.js";
 import { getChat } from "./telegram-queries/get-chat.js";
 import { getChatParticipants } from "./telegram-queries/get-chat-participants.js";
 import { getDiscussion } from "./telegram-queries/get-discussion.js";
+import { getProfilePhotoInfo } from "./telegram-queries/get-profile-photo-info.js";
 import { getMessage } from "./telegram-queries/get-message.js";
 import { getMessageContext } from "./telegram-queries/get-message-context.js";
 import { getMessages } from "./telegram-queries/get-messages.js";
@@ -141,5 +147,13 @@ export class TelegramClientAdapter implements TelegramQueries {
 
   public async getChatParticipants(input: GetChatParticipantsInput): Promise<{ participants: ParticipantSummary[] }> {
     return getChatParticipants(this.context, input);
+  }
+
+  public async getProfilePhotoInfo(input: GetProfilePhotoInfoInput): Promise<{ profile_photo: ProfilePhotoInfo }> {
+    return getProfilePhotoInfo(this.context, input);
+  }
+
+  public async downloadProfilePhoto(input: DownloadProfilePhotoInput): Promise<ProfilePhotoDownloadResult> {
+    return downloadProfilePhoto(this.context, input);
   }
 }

@@ -64,6 +64,56 @@ describe("buildTelegramRuntime", () => {
 
     expect(disconnect).toHaveBeenCalledOnce();
   });
+
+  test("bounds a hung Telegram connect with a typed startup timeout", async () => {
+    const disconnect = vi.fn().mockResolvedValue(undefined);
+    const client = {
+      ...makeClient({ authorized: true }),
+      connect: vi.fn().mockReturnValue(new Promise(() => undefined)),
+      disconnect
+    };
+
+    await expect(
+      buildTelegramRuntime(makeConfig(), {
+        sessionStore: { load: vi.fn().mockResolvedValue("session"), save: vi.fn() },
+        createClient: vi.fn().mockReturnValue(client),
+        startupTimeoutMs: 1
+      })
+    ).rejects.toMatchObject({
+      code: "TELEGRAM_ERROR",
+      details: {
+        stage: "connect",
+        timeout_ms: 1
+      }
+    });
+
+    expect(disconnect).toHaveBeenCalledOnce();
+  });
+
+  test("bounds a hung Telegram authorization check with a typed startup timeout", async () => {
+    const disconnect = vi.fn().mockResolvedValue(undefined);
+    const client = {
+      ...makeClient({ authorized: true }),
+      checkAuthorization: vi.fn().mockReturnValue(new Promise(() => undefined)),
+      disconnect
+    };
+
+    await expect(
+      buildTelegramRuntime(makeConfig(), {
+        sessionStore: { load: vi.fn().mockResolvedValue("session"), save: vi.fn() },
+        createClient: vi.fn().mockReturnValue(client),
+        startupTimeoutMs: 1
+      })
+    ).rejects.toMatchObject({
+      code: "TELEGRAM_ERROR",
+      details: {
+        stage: "checkAuthorization",
+        timeout_ms: 1
+      }
+    });
+
+    expect(disconnect).toHaveBeenCalledOnce();
+  });
 });
 
 describe("createMcpServer", () => {
@@ -77,6 +127,10 @@ describe("createMcpServer", () => {
       expect(registeredTools[name]!.inputSchema).toBe(toolSchemas[name]);
       expect(registeredTools[name]!.handler).toEqual(expect.any(Function));
     }
+    expect(registeredTools.telegram_get_recent_messages!.description).toContain("Folder-wide reads are capped at 50 chats");
+    expect(registeredTools.telegram_get_recent_messages!.description).toContain("telegram_list_folder_chats_page");
+    expect(registeredTools.telegram_list_folder_chats_page!.description).toContain("inventory tool for large folders");
+    expect(registeredTools.telegram_download_profile_photo!.description).toContain("one current profile photo");
   });
 });
 
@@ -141,6 +195,22 @@ describe("summarizeToolArgsForLog", () => {
       scope: "global"
     });
   });
+
+  test("redacts profile photo refs and local paths in logs", () => {
+    expect(
+      summarizeToolArgsForLog("telegram_download_profile_photo", {
+        peer_ref: "secret-peer-ref",
+        output_file: "/Users/example/private/photo.jpg",
+        overwrite: false
+      })
+    ).toEqual({
+      peer_ref_sha256: expect.any(String),
+      output_file_sha256: expect.any(String),
+      overwrite: false,
+      scope: "peer"
+    });
+  });
+
 });
 
 describe("sanitizePublicErrorForLog", () => {
@@ -195,7 +265,9 @@ describe("sanitizePublicErrorForLog", () => {
         getThread: vi.fn(),
         getDiscussion: vi.fn(),
         getSearchCounters: vi.fn(),
-        getChatParticipants: vi.fn()
+        getChatParticipants: vi.fn(),
+        getProfilePhotoInfo: vi.fn(),
+        downloadProfilePhoto: vi.fn()
       },
       { logger: makeLogger({ warn }) }
     );
@@ -244,6 +316,7 @@ function makeClient(options: { authorized: boolean }): GramJsLikeClient & {
     getEntity: vi.fn(),
     getMessages: vi.fn(),
     getParticipants: vi.fn(),
+    downloadProfilePhoto: vi.fn(),
     invoke: vi.fn()
   };
 }
@@ -268,7 +341,9 @@ function makeQueries() {
     getThread: vi.fn(),
     getDiscussion: vi.fn(),
     getSearchCounters: vi.fn(),
-    getChatParticipants: vi.fn()
+    getChatParticipants: vi.fn(),
+    getProfilePhotoInfo: vi.fn(),
+    downloadProfilePhoto: vi.fn()
   };
 }
 
@@ -287,6 +362,8 @@ async function callRegisteredTool(server: unknown, name: string, args: unknown):
   return (await registeredTools[name]!.handler(args)) as { structuredContent?: unknown };
 }
 
-function registeredToolsFor(server: unknown): Record<string, { inputSchema: unknown; handler: (args: unknown) => Promise<unknown> }> {
-  return (server as { _registeredTools: Record<string, { inputSchema: unknown; handler: (args: unknown) => Promise<unknown> }> })._registeredTools;
+function registeredToolsFor(server: unknown): Record<string, { description?: string; inputSchema: unknown; handler: (args: unknown) => Promise<unknown> }> {
+  return (server as {
+    _registeredTools: Record<string, { description?: string; inputSchema: unknown; handler: (args: unknown) => Promise<unknown> }>;
+  })._registeredTools;
 }

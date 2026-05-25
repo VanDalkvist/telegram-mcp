@@ -1,6 +1,9 @@
 import { describe, expect, test, vi } from "vitest";
 import { Api } from "telegram";
 import bigInt from "big-integer";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { AppError } from "../../src/domain/errors.js";
 import { parseFolderRef } from "../../src/domain/folder-ref.js";
 import { parsePeerRef } from "../../src/domain/peer-ref.js";
@@ -820,7 +823,7 @@ describe("TelegramClientAdapter", () => {
         { filter: new Api.InputMessagesFilterUrl(), count: 3 }
       ]);
     client.getParticipants.mockResolvedValueOnce([
-      { id: "7", username: "alice", firstName: "Alice", bot: false }
+      { id: "7", accessHash: "70", username: "sample_user", firstName: "Sample", bot: false }
     ]);
     const adapter = new TelegramClientAdapter(client as unknown as GramJsLikeClient);
 
@@ -839,14 +842,59 @@ describe("TelegramClientAdapter", () => {
     });
     expect(client.invoke.mock.calls[2]![0]).toBeInstanceOf(Api.messages.GetSearchCounters);
 
-    await expect(adapter.getChatParticipants({ chat_ref: chatRef, filter: "recent", limit: 10 })).resolves.toMatchObject({
-      participants: [{ id: "7", title: "Alice", username: "alice" }]
+    const participants = await adapter.getChatParticipants({ chat_ref: chatRef, filter: "recent", limit: 10 });
+    expect(participants.participants).toMatchObject([
+      { id: "7", title: "Sample", username: "sample_user", participant_ref: expect.any(String) }
+    ]);
+    expect(parsePeerRef(participants.participants[0]!.participant_ref)).toEqual({
+      version: 1,
+      type: "user",
+      id: "7",
+      accessHash: "70"
     });
     expect(client.getParticipants).toHaveBeenCalledWith(entity, {
       filter: undefined,
       limit: 10,
       search: undefined
     });
+  });
+
+  test("reads profile photo availability for a resolved peer", async () => {
+    const peerRef = chatRefFor({ id: "7", type: "user", title: "Sample" });
+    const entity = { id: "7", accessHash: "70", firstName: "Sample", photo: { className: "UserProfilePhoto" } };
+    const client = makeClient({ entity });
+    const adapter = new TelegramClientAdapter(client as unknown as GramJsLikeClient);
+
+    await expect(adapter.getProfilePhotoInfo({ peer_ref: peerRef })).resolves.toEqual({
+      profile_photo: { available: true }
+    });
+  });
+
+  test("downloads one profile photo to an explicit local file without exposing peer identity", async () => {
+    const outputDir = await mkdtemp(join(tmpdir(), "telegram-mcp-profile-photo-"));
+    const outputFile = join(outputDir, "source.jpg");
+    const peerRef = chatRefFor({ id: "7", type: "user", title: "Sample" });
+    const photo = Buffer.from("jpeg");
+    const client = makeClient({
+      entity: { id: "7", accessHash: "70", firstName: "Sample", photo: { className: "UserProfilePhoto" } }
+    });
+    client.downloadProfilePhoto.mockResolvedValueOnce(photo);
+    const adapter = new TelegramClientAdapter(client as unknown as GramJsLikeClient);
+
+    try {
+      const result = await adapter.downloadProfilePhoto({ peer_ref: peerRef, output_file: outputFile, overwrite: false });
+
+      expect(result).toEqual({
+        output_file: outputFile,
+        status: "downloaded",
+        bytes: photo.length
+      });
+      await expect(readFile(outputFile)).resolves.toEqual(photo);
+      expect(JSON.stringify(result)).not.toContain("Sample");
+      expect(JSON.stringify(result)).not.toContain("sample_user");
+    } finally {
+      await rm(outputDir, { recursive: true, force: true });
+    }
   });
 
   test("builds context around a target message", async () => {
@@ -897,6 +945,7 @@ function makeClient(data: {
     getEntity: vi.fn().mockResolvedValue(data.entity ?? data.dialogs?.[0]),
     getMessages: vi.fn().mockResolvedValue(data.messages ?? []),
     getParticipants: vi.fn().mockResolvedValue([]),
+    downloadProfilePhoto: vi.fn().mockResolvedValue(Buffer.alloc(0)),
     invoke: vi.fn().mockResolvedValue({
       filters: data.dialogFilters ?? [],
       messages: data.messages ?? [],

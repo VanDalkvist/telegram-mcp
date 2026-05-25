@@ -10,5 +10,6 @@ export interface GramJsLikeClient {
   getEntity(entity: unknown): Promise<unknown>;
   getMessages(entity: unknown, params?: Record<string, unknown>): Promise<unknown[]>;
   getParticipants(entity: unknown, params?: Record<string, unknown>): Promise<unknown[]>;
+  downloadProfilePhoto(entity: unknown, params?: Record<string, unknown>): Promise<string | Buffer | undefined>;
   invoke(request: unknown): Promise<unknown>;
 }

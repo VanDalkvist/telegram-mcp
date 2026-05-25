@@ -34,11 +34,12 @@ describe("runServerWithDeps", () => {
   test("does not expose MCP tools when Telegram auth is invalid", async () => {
     const connect = vi.fn();
     const createServer = vi.fn().mockReturnValue({ connect });
+    const logger = { info: vi.fn().mockResolvedValue(undefined), debug: vi.fn(), warn: vi.fn(), error: vi.fn().mockResolvedValue(undefined) };
     const stderrWrite = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
 
     await runServerWithDeps({
       loadConfig: () => makeConfig(),
-      createLogger: () => ({ info: vi.fn().mockResolvedValue(undefined), debug: vi.fn(), warn: vi.fn(), error: vi.fn() }),
+      createLogger: () => logger,
       buildRuntime: vi.fn().mockRejectedValue(
         new AppError("AUTH_REQUIRED", "Telegram session is not authorized", {
           publicMessage: "Telegram authorization is required"
@@ -51,6 +52,13 @@ describe("runServerWithDeps", () => {
     expect(createServer).not.toHaveBeenCalled();
     expect(connect).not.toHaveBeenCalled();
     expect(process.exitCode).toBe(1);
+    expect(logger.error).toHaveBeenCalledWith(
+      "server_startup_failed",
+      expect.objectContaining({
+        error_code: "AUTH_REQUIRED",
+        error_message: "Telegram authorization is required"
+      })
+    );
     expect(stderrWrite.mock.calls[0]![0]).toContain("AUTH_REQUIRED");
   });
 

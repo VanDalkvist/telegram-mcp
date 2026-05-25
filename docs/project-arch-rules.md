@@ -50,6 +50,7 @@ Do not:
 ## Project Deviations
 
 - No hosted multi-user authorization in MVP. This is a product non-goal from `docs/design.md`, not a relaxation of local session validation.
+- Local profile-photo export is an explicit MVP command-like exception in `docs/design.md`: it may write one caller-provided local file, while Telegram operations remain read-only and logs must keep paths and peer refs redacted.
 - No database rules apply until a server-side persistence layer is introduced.
 - No frontend rules apply while the project remains CLI/MCP-only.
 
