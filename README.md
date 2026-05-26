@@ -68,6 +68,33 @@ Audit не является гарантией отсутствия уязвим
 
 Все Telegram operations read-only. Export tools пишут только в явно переданный локальный file path и не меняют состояние Telegram. Inputs валидируются до вызова Telegram.
 
+## Operator scripts
+
+MCP tool surface остаётся read-only. Для разовых локальных операций с явным side effect в репозитории есть отдельные operator scripts, которые запускаются вручную и используют ту же локальную MTProto user session.
+
+Добавить локальные WebP/PNG в owned regular sticker set:
+
+```sh
+npm run stickers:add -- \
+  --manifest /absolute/path/to/manifest.json \
+  --base-dir /absolute/path/to/sticker/project
+```
+
+По умолчанию команда делает dry-run: проверяет авторизацию, ownership sticker set, текущий count, capacity и state. Реальная загрузка требует флаг `--apply`.
+
+Manifest ожидает `sticker_set_short_name` и массив `stickers` с `path`, `emoji`, `slug`, `text`, `sha256`. State пишется рядом с manifest или в путь из `--state`, чтобы повторный запуск пропускал уже загруженные файлы.
+
+Создать новый regular sticker set из локального manifest:
+
+```sh
+npm run stickers:create -- \
+  --manifest /absolute/path/to/manifest.json \
+  --base-dir /absolute/path/to/sticker/project \
+  --title "Pack title"
+```
+
+Эта команда тоже делает dry-run по умолчанию: проверяет авторизацию, доступность `sticker_set_short_name` и локальные файлы. Реальное создание требует `--apply`. После успешного создания state пишется рядом с manifest или в путь из `--state`.
+
 ## Требования
 
 - Node.js 22 или новее.
